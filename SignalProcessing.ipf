@@ -9,7 +9,10 @@ Constant kSpeedOfLight=2.99792458e-5 //(cm/fs)
 //A great reference that is easy to read for the non-EECS user is:
 // Barkhuijsen, H.; De Beer, R.; Bovée, W. M. M. .; Van Ormondt, D. J. Magn. Reson. (1969) 1985, 61, 465–481.
 //
-//This particular implementation was adapted, in part, from matNMR (http://matnmr.sourceforge.net/)
+//This particular implementation was adapted, in part, from matNMR by Jacco van Beek
+//http://matnmr.sourceforge.net/
+//and  Complex Exponential Analysis by Greg Reynolds
+//http://www.mathworks.com/matlabcentral/fileexchange/12439-complex-exponential-analysis/
 //
 //Author: David Hoffman (david.hoffman@berkeley.edu)
 //Date: Feb, 2013
@@ -466,7 +469,7 @@ End
 	Return  GetWavesDataFolder(myHankel,2)
 End
 
-Function/S unHankelAvg(Hankel)
+STATIC Function/S unHankelAvg(Hankel)
 	//A function that takes a Hankel matrix and returns the original signal
 	//that it was formed from by averaging along the anti-diagonals
 	Wave/C Hankel		//The matrix to be inverted
