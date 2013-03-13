@@ -1,8 +1,18 @@
 ReadMe file for Igor Data Analysis
 
-The license for the code contained in this repository is contained in included the license.txt file.
+The license for the code contained in this repository is contained in 
+included the license.txt file.
 
-I have written these IgorPro (WaveMetrics Inc.) procedures to analyze data collected during my doctoral research. My research primarily uses ultrafast lasers to perform two main types of vibrational spectroscopy 1.) Femtosecond Stimulated Raman Spectroscopy, FSRS (DPH, et al., PCCP 2012, 14, 6298 and DPH, et al., JPCC 2013 in press), 2.) and Impulsive Stimulated Raman Spectroscopy, ISRS (DPH, et al., JPCA 2013 in preparation).
+I have written these IgorPro (WaveMetrics Inc.) procedures to analyze 
+data collected during my doctoral research. My research primarily uses 
+ultrafast lasers to perform two main types of vibrational spectroscopy 
+1.) Femtosecond Stimulated Raman Spectroscopy, FSRS (DPH, et al., PCCP 
+2012, 14, 6298 and DPH, et al., JPCC 2013 in press), 2.) and Impulsive 
+Stimulated Raman Spectroscopy, ISRS (DPH, et al., JPCA 2013 in 
+preparation).
 
 - SignalProcessing.ipf
-This Igor Procedure File (.ipf) contains procedures useful for analyzing ISRS data. In fact, these procedures should be useful for analyzing any data which can be reasonably described as a sum of damped sinusoids.
+This Igor Procedure File (.ipf) contains procedures useful for analyzing 
+ISRS data. In fact, these procedures should be useful for analyzing any 
+data which can be reasonably described as a sum of damped sinusoids.
+
