@@ -305,9 +305,9 @@ Function loadPEData()
 				case 2:
 					Note/NOCR wave0, "LS"
 					break
-				case 10:
+				case 11:
 					Note/NOCR wave0, "TDRIVE"
-					SetScale/I x, xMin, xMax, "s", wave0
+					SetScale/I x, xMax, xMin, "s", wave0
 					break
 				default:
 					Note/NOCR wave0, "UNKNOWN ("+num2str(specType)+")"
@@ -316,19 +316,19 @@ Function loadPEData()
 			
 			Note wave0, "Number of points: "+num2str(numPoints)
 			Note wave0, "Abscissa maximum: " + num2str(xMax)
-			If(specType == 10)
+			If(specType == 11)
 				Note/NOCR wave0, " s"
 			Else
 				Note/NOCR wave0, " nm"
 			EndIf
 			Note wave0, "Abscissa minimum: " + num2str(xMin)
-			If(specType == 10)
+			If(specType == 11)
 				Note/NOCR wave0, " s"
 			Else
 				Note/NOCR wave0, " nm"
 			EndIf
 			Note wave0, "Data interval: "+num2str(dataInterval)
-			If(specType == 10)
+			If(specType == 11)
 				Note/NOCR wave0, " s"
 			Else
 				Note/NOCR wave0, " nm"
@@ -570,7 +570,11 @@ Function loadPEData()
 	EndIf
 	ModifyGraph mirror=2,minor(bottom)=1
 	Label left "Absorbance (\\U)"
-	Label bottom "Wavelength (\\U)"
+	If(SpecType==11)
+		Label bottom "Time (\\U)"
+	Else
+		Label bottom "Wavelength (\\U)"
+	EndIf
 
 	KillWaves/Z wave0
 	Return 0
