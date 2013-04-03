@@ -1,4 +1,4 @@
-ReadMe file for Igor Data Analysis
+#ReadMe file for Igor Data Analysis
 
 The license for the code contained in this repository is contained in included the license.txt file.
 
