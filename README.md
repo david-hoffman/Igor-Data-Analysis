@@ -16,3 +16,5 @@ This file contains a single procedure, `LoadPEData()`. This procedure will ask t
 This Igor Procedure File (.ipf) contains procedures useful for analyzing ISRS data. In fact, these procedures should be useful for analyzing any data which can be reasonably described as a sum of damped sinusoids. The two main procedures are:
 - `LPSVD(signal,[M,LFactor,RemoveBias])` which fits the data, in a *linear* least squares sense using the **Linear Prediction with Singular Value Decomposition** algorithm.
 - `Cadzow(signal, M, iters,[lFactor,q])` which filters the data using Cadzow's Composite Property Mapping Algorithm.
+
+[![githalytics.com alpha](https://cruel-carlota.pagodabox.com/067a677b64204640d9421177434c208e "githalytics.com")](http://githalytics.com/david-hoffman/Igor-Data-Analysis)
