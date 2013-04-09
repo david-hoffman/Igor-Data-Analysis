@@ -19,3 +19,7 @@ This Igor Procedure File (.ipf) contains procedures useful for analyzing ISRS da
 
 [![githalytics.com alpha](https://cruel-carlota.pagodabox.com/067a677b64204640d9421177434c208e "githalytics.com")](http://githalytics.com/david-hoffman/Igor-Data-Analysis)
 [![githalytics.com alpha](https://cruel-carlota.pagodabox.com/4589fcf07e7a13e36dac754a2089bc2e "githalytics.com")](http://githalytics.com/david-hoffman/Igor-Data-Analysis)
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/david-hoffman/Igor-Data-Analysis/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
