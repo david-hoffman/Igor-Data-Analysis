@@ -17,7 +17,6 @@ This Igor Procedure File (.ipf) contains procedures useful for analyzing ISRS da
 - `LPSVD(signal,[M,LFactor,RemoveBias])` which fits the data, in a *linear* least squares sense using the **Linear Prediction with Singular Value Decomposition** algorithm.
 - `Cadzow(signal, M, iters,[lFactor,q])` which filters the data using Cadzow's Composite Property Mapping Algorithm.
 
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/david-hoffman/Igor-Data-Analysis/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
 [![githalytics.com alpha](https://cruel-carlota.pagodabox.com/067a677b64204640d9421177434c208e "githalytics.com")](http://githalytics.com/david-hoffman/Igor-Data-Analysis)
 [![githalytics.com alpha](https://cruel-carlota.pagodabox.com/4589fcf07e7a13e36dac754a2089bc2e "githalytics.com")](http://githalytics.com/david-hoffman/Igor-Data-Analysis)
 
