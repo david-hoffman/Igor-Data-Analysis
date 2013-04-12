@@ -268,7 +268,7 @@ STATIC Function/S pinv(matrix)
 	Return  GetWavesDataFolder(M_Inverse,2)
 End
 
-Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutoff])
+Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutoff,dampcutoff])
 	//A function that reconstructs the original signal in the time domain and frequency domain
 	//from the LPSVD algorithms coefficients, which are passed as LPSVD_coefs
 	
@@ -278,6 +278,7 @@ Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutof
 	Variable timeStep		//Sampling frequency with which the signal was recorded, in fs
 	Variable ampcutoff		//Cutoff for the amplitudes of the components
 	Variable freqcutoff		//Cutoff for the frequency of the components
+	Variable dampcutoff		//Cutoff for the damping of the components
 	
 	If(ParamIsDefault(ampcutoff))
 		ampCutoff = 0
@@ -285,6 +286,10 @@ Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutof
 	
 	If(ParamIsDefault(freqcutoff))
 		freqCutoff = 0
+	EndIf
+	
+	If(ParamIsDefault(dampcutoff))
+		dampCutoff = 0
 	EndIf
 	
 	//Initialize time domain signal
@@ -303,7 +308,8 @@ Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutof
 	Variable amp2,amp,damp,freq,phase
 	
 	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
-		if(LPSVD_coefs[i][%amps2] > ampcutoff)
+		damp = -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
+		if(LPSVD_coefs[i][%amps2] > ampcutoff && damp > dampcutoff)
 			amp =  LPSVD_coefs[i][%amps]
 			amp2 = LPSVD_coefs[i][%amps2]
 			damp = -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
@@ -493,11 +499,11 @@ STATIC Function/S unHankelAvg(Hankel)
 	Return  GetWavesDataFolder(mySignal,2)
 End
 
-Function DrawPeaks(LPSVD_coefs,timestep,[freqcutoff,ampcutoff])
+Function DrawPeaks(LPSVD_coefs,timestep,[freqcutoff,ampcutoff,dampcutoff])
 //A quick procedure to draw lines indicating the peak values for the reconstructed frequency domain signal.
 	WAVE LPSVD_coefs				//The LPSVD_coefs that you'd like to draw
 	Variable timestep				//The time step of the original signal (for scaling the LPSVD coefs)
-	Variable freqcutoff,ampcutoff	//Frequency and amplitude cutoffs
+	Variable freqcutoff,ampcutoff,dampcutoff	//Frequency and amplitude cutoffs
 	
 	If(ParamIsDefault(ampcutoff))
 		ampcutoff=0
@@ -507,15 +513,19 @@ Function DrawPeaks(LPSVD_coefs,timestep,[freqcutoff,ampcutoff])
 		freqcutoff=0
 	Endif
 	
+	If(ParamIsDefault(dampcutoff))
+		dampCutoff = 0
+	EndIf
 	//make sure our draw environment is good to go
 	SetDrawLayer/K ProgBack
 	SetDrawEnv linefgc= (0,0,0),dash=1,xcoord= bottom,ycoord= prel
 	SetDrawEnv textxjust= 1,textyjust= 2,textrot= 90, save
-	Variable i=0,Freq = 0
+	Variable i=0,Freq = 0,damp=0
 	
 	//Drawing the lines and the tags
 	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
-		if(LPSVD_coefs[i][%amps2] > ampcutoff)
+		damp = -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
+		if(LPSVD_coefs[i][%amps2] > ampcutoff && damp >dampcutoff)
 			freq=LPSVD_coefs[i][%freqs]/kSpeedOflight/timestep
 			if(freq>freqcutoff)
 				If(round(freq) < 100)
@@ -531,4 +541,98 @@ Function DrawPeaks(LPSVD_coefs,timestep,[freqcutoff,ampcutoff])
 	EndFor
 	//Change the Draw layer to front
 	SetDrawLayer UserFront
+End
+
+Function OptimizeLPSVDCoefs(Data,LPSVD_coefs,[ampcutoff,freqcutoff])
+	Wave Data							//The original data
+	Wave LPSVD_coefs					//Parameters to optimize
+	Variable ampcutoff, freqcutoff		//Cutoff parameters to remove spurious values
+	
+	If(ParamIsDefault(ampcutoff))
+		ampcutoff=0
+	EndIf
+	
+	If(ParamIsDefault(freqcutoff))
+		freqcutoff=0
+	EndIf
+	//Make a copy of the LPSVD_coefs, we'll use this wave later
+	//to repack to optimized variables
+	Duplicate/O LPSVD_coefs $("opt"+NameOfWave(LPSVD_coefs))
+	WAVE newLPSVD_coefs = $("opt"+NameOfWave(LPSVD_coefs))
+	
+	//Make a copy of Data and remove the scaling from the copy.
+	Duplicate/O Data $("fit_"+nameofwave(Data))
+	WAVE newData = $("fit_"+nameofwave(Data))
+	SetScale/P x,0,1,"", newData
+	
+	Variable numComponents = DimSize(LPSVD_coefs,0)
+	variable i = 0
+	For(i=numComponents;i>0;i-=1)
+		If(newLPSVD_coefs[i-1][%amps2]<ampcutoff || abs(newLPSVD_coefs[i-1][%freqs])<freqcutoff )
+			 print abs(newLPSVD_coefs[i-1][%freqs])/kSpeedOfLight/DimDelta(data,0)
+			DeletePoints (i-1),1, newLPSVD_coefs
+			numComponents-=1
+		Endif
+	EndFor
+	
+	//unpack LPSVD_coefs into a regular coefficient wave
+	//Make use of the fact that only half of the coefficients are necessary
+	//Also, set any frequency below some tolerance to zero and hold it there
+	Variable numCoefs =  ceil(numComponents/2)
+	Make/D/O/N=(numCoefs*4) myCoefs
+	For(i=0;i<numCoefs;i+=1)
+		myCoefs[4*i] = 2*LPSVD_coefs[i][%amps]
+		myCoefs[4*i+1] = LPSVD_coefs[i][%damps]
+		myCoefs[4*i+2] = LPSVD_coefs[i][%freqs]
+		myCoefs[4*i+3] = LPSVD_coefs[i][%phase]
+	EndFor
+	
+	//If there are an odd number of components the middle one is zero frequency
+	If(numCoefs-floor(DimSize(LPSVD_coefs,0)/2))
+		myCoefs[4*(numCoefs-1)] /= 2
+	EndIf
+	Variable V_FitNumIters
+	Variable V_FitMaxIters=200
+	//do the optimization (we're using funcfit, so we're minimizing the chi^2)
+	FuncFit/N/W=2/Q decayingSinusoids, myCoefs, newData
+	
+	Print V_FitNumIters
+	//Well use the newData wave to hold the fit, why not?
+	newData = decayingSinusoids(myCoefs,p)
+	
+	//Return the scaling
+	CopyScales/P Data newData
+	
+	//Repack
+	For(i=0;i<numCoefs;i+=1)
+		newLPSVD_coefs[i][%amps] = myCoefs[4*i]/2
+		newLPSVD_coefs[i][%amps2] = (myCoefs[4*i]/2)^2
+		newLPSVD_coefs[i][%damps] = myCoefs[4*i+1]
+		newLPSVD_coefs[i][%freqs] = myCoefs[4*i+2]
+		newLPSVD_coefs[i][%phase] = myCoefs[4*i+3]
+		
+		newLPSVD_coefs[2*numCoefs-i-1][%amps] = myCoefs[4*i]/2
+		newLPSVD_coefs[2*numCoefs-i-1][%amps2] = (myCoefs[4*i]/2)^2
+		newLPSVD_coefs[2*numCoefs-i-1][%damps] = myCoefs[4*i+1]
+		newLPSVD_coefs[2*numCoefs-i-1][%freqs] = -myCoefs[4*i+2]
+		newLPSVD_coefs[2*numCoefs-i-1][%phase] = -myCoefs[4*i+3]
+	EndFor
+End
+
+Function decayingSinusoids(w,t)
+	//w[i] = amp
+	//w[i+1] = damp
+	//w[i+2] = freq
+	//w[i+3] = phase
+	Wave w
+	Variable t
+	
+	Variable val=0
+	Variable i=0
+	Variable npts = numpnts(w)
+	For(i=0;i<npts;i+=4)
+		val += w[i]*exp(t*w[i+1])*Cos(2*pi*w[i+2]*t+w[i+3])
+	EndFor
+	
+	Return val
 End
