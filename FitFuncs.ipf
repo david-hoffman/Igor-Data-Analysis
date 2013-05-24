@@ -810,3 +810,20 @@ Function triExp_XOffSet(w,x) : FitFunc
 
 	return w[0] + w[2]*Exp(-(x-w[1])/w[3]) + w[4]*Exp(-(x-w[1])/w[5]) + w[6]*Exp(-(x-w[1])/w[7])
 End
+
+Function multiExp(w,t) : FitFunc
+//A simple function for fitting multiple exponentials simultaneously.
+	Wave w
+	Variable t
+	
+	Variable val = w[0]
+	Variable npts= numpnts(w),i=2
+	do
+		if( i>=npts )
+			break
+		endif
+		val += w[i]*exp(-(t-w[1])/w[i+1])
+		i+=2
+	while(1)
+	return val
+End

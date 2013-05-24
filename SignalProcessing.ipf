@@ -147,12 +147,11 @@ Function LPSVD(signal,[M,LFactor,RemoveBias])
 	Sort sortKeys usedRoots
 	
 	//Lets make a matrix with dimension labels to store all our parameters
-	Make/D/O/N=(numpnts(usedRoots),5) LPSVD_coefs = 0
+	Make/D/O/N=(numpnts(usedRoots),4) LPSVD_coefs = 0
 	SetDimLabel 1, 0, amps, LPSVD_coefs
-	SetDimLabel 1, 1, amps2, LPSVD_coefs
-	SetDimLabel 1, 2, freqs, LPSVD_coefs
-	SetDimLabel 1, 3, damps, LPSVD_coefs
-	SetDimLabel 1, 4, phase, LPSVD_coefs
+	SetDimLabel 1, 1, freqs, LPSVD_coefs
+	SetDimLabel 1, 2, damps, LPSVD_coefs
+	SetDimLabel 1, 3, phase, LPSVD_coefs
 	
 	//We can directly convert our poles into estimated damping factors and frequencies
 	LPSVD_coefs[][%damps] = real(usedRoots[p])
@@ -168,7 +167,6 @@ Function LPSVD(signal,[M,LFactor,RemoveBias])
 	//Amps here are complex meaning it has amplitude and phase information
 	MatrixOp/C/O cAmps = pinvBasis x signal
 	LPSVD_coefs[][%amps]=Real(r2polar(cAmps[p]))
-	LPSVD_coefs[][%amps2]=magsqr(cAmps[p])
 	LPSVD_coefs[][%phase]=Imag(r2polar(cAmps[p]))
 	
 	//Move the results to the original data folder
@@ -305,17 +303,16 @@ Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutof
 	//Now we can loop through our coefficients and build our wave
 	Variable i=0
 	
-	Variable amp2,amp,damp,freq,phase
+	Variable amp,damp,freq,phase
 	
 	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
 		damp = -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
-		if(LPSVD_coefs[i][%amps2] > ampcutoff && damp > dampcutoff)
+		if((LPSVD_coefs[i][%amps])^2 > ampcutoff && damp > dampcutoff)
 			amp =  LPSVD_coefs[i][%amps]
-			amp2 = LPSVD_coefs[i][%amps2]
 			damp = -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
 			freq = LPSVD_coefs[i][%freqs]/kSpeedOfLight/timestep
 			If( abs(Freq) > freqcutoff)		
-				freqDomain += amp2/((x-freq)^2+(damp/2)^2)
+				freqDomain += amp^2/((x-freq)^2+(damp/2)^2)
 			EndIf
 			//Keep in mind that LPSVD_coefs were constructed agnostic to the actual sampling
 			//frequency so we will reconstruct it in the same way
@@ -518,14 +515,14 @@ Function DrawPeaks(LPSVD_coefs,timestep,[freqcutoff,ampcutoff,dampcutoff])
 	EndIf
 	//make sure our draw environment is good to go
 	SetDrawLayer/K ProgBack
-	SetDrawEnv linefgc= (0,0,0),dash=1,xcoord= bottom,ycoord= prel
+	SetDrawEnv linefgc= (34952,34952,34952),dash= 0,xcoord= bottom,ycoord= prel
 	SetDrawEnv textxjust= 1,textyjust= 2,textrot= 90, save
 	Variable i=0,Freq = 0,damp=0
 	
 	//Drawing the lines and the tags
 	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
 		damp = -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
-		if(LPSVD_coefs[i][%amps2] > ampcutoff && damp >dampcutoff)
+		if((LPSVD_coefs[i][%amps])^2 > ampcutoff && damp >dampcutoff)
 			freq=LPSVD_coefs[i][%freqs]/kSpeedOflight/timestep
 			if(freq>freqcutoff)
 				If(round(freq) < 100)
@@ -543,10 +540,11 @@ Function DrawPeaks(LPSVD_coefs,timestep,[freqcutoff,ampcutoff,dampcutoff])
 	SetDrawLayer UserFront
 End
 
-Function OptimizeLPSVDCoefs(Data,LPSVD_coefs,[ampcutoff,freqcutoff])
-	Wave Data							//The original data
-	Wave LPSVD_coefs					//Parameters to optimize
-	Variable ampcutoff, freqcutoff		//Cutoff parameters to remove spurious values
+Function OptimizeLPSVDCoefs(Data,LPSVD_coefs,[ampcutoff,freqcutoff,dampcutoff,holdfreqphase])
+	Wave Data									//The original data
+	Wave LPSVD_coefs							//Parameters to optimize
+	Variable ampcutoff, freqcutoff,dampcutoff	//Cutoff parameters to remove spurious values
+	Variable holdfreqphase						//hold the phases and frequencies constant during the fit
 	
 	If(ParamIsDefault(ampcutoff))
 		ampcutoff=0
@@ -555,6 +553,15 @@ Function OptimizeLPSVDCoefs(Data,LPSVD_coefs,[ampcutoff,freqcutoff])
 	If(ParamIsDefault(freqcutoff))
 		freqcutoff=0
 	EndIf
+	
+	If(ParamIsDefault(dampcutoff))
+		dampcutoff=0
+	EndIf
+	
+	If(ParamIsDefault(holdfreqphase))
+		holdfreqphase=0
+	EndIf
+	
 	//Make a copy of the LPSVD_coefs, we'll use this wave later
 	//to repack to optimized variables
 	Duplicate/O LPSVD_coefs $("opt"+NameOfWave(LPSVD_coefs))
@@ -567,24 +574,35 @@ Function OptimizeLPSVDCoefs(Data,LPSVD_coefs,[ampcutoff,freqcutoff])
 	
 	Variable numComponents = DimSize(LPSVD_coefs,0)
 	variable i = 0
+	String removedComponents = ""
 	For(i=numComponents;i>0;i-=1)
-		If(newLPSVD_coefs[i-1][%amps2]<ampcutoff || abs(newLPSVD_coefs[i-1][%freqs])<freqcutoff )
-			 print abs(newLPSVD_coefs[i-1][%freqs])/kSpeedOfLight/DimDelta(data,0)
+		If((newLPSVD_coefs[i-1][%amps])^2<ampcutoff || (-LPSVD_coefs[i-1][%damps]/kSpeedOfLight/dimdelta(data,0)/pi) < dampcutoff || abs(newLPSVD_coefs[i-1][%freqs])<freqcutoff)
+			removedComponents += num2istr(abs(newLPSVD_coefs[i-1][%freqs])/kSpeedOfLight/DimDelta(data,0)) +", "
 			DeletePoints (i-1),1, newLPSVD_coefs
 			numComponents-=1
 		Endif
 	EndFor
+	
+	If(strlen(removedComponents))
+		Print "The following frequency components were removed: " + removedComponents
+	EndIf
 	
 	//unpack LPSVD_coefs into a regular coefficient wave
 	//Make use of the fact that only half of the coefficients are necessary
 	//Also, set any frequency below some tolerance to zero and hold it there
 	Variable numCoefs =  ceil(numComponents/2)
 	Make/D/O/N=(numCoefs*4) myCoefs
+	String HoldStr = ""
 	For(i=0;i<numCoefs;i+=1)
 		myCoefs[4*i] = 2*LPSVD_coefs[i][%amps]
 		myCoefs[4*i+1] = LPSVD_coefs[i][%damps]
 		myCoefs[4*i+2] = LPSVD_coefs[i][%freqs]
 		myCoefs[4*i+3] = LPSVD_coefs[i][%phase]
+		If(holdfreqphase)
+			HoldStr+="0011"
+		Else
+			HoldStr+="0000"
+		EndIf
 	EndFor
 	
 	//If there are an odd number of components the middle one is zero frequency
@@ -594,9 +612,9 @@ Function OptimizeLPSVDCoefs(Data,LPSVD_coefs,[ampcutoff,freqcutoff])
 	Variable V_FitNumIters
 	Variable V_FitMaxIters=200
 	//do the optimization (we're using funcfit, so we're minimizing the chi^2)
-	FuncFit/N/W=2/Q decayingSinusoids, myCoefs, newData
+	FuncFit/H=holdstr/N/W=2/Q decayingSinusoids, myCoefs, newData
 	
-	Print V_FitNumIters
+	Print "Number of interations: "+num2str(V_FitNumIters)
 	//Well use the newData wave to hold the fit, why not?
 	newData = decayingSinusoids(myCoefs,p)
 	
@@ -606,13 +624,11 @@ Function OptimizeLPSVDCoefs(Data,LPSVD_coefs,[ampcutoff,freqcutoff])
 	//Repack
 	For(i=0;i<numCoefs;i+=1)
 		newLPSVD_coefs[i][%amps] = myCoefs[4*i]/2
-		newLPSVD_coefs[i][%amps2] = (myCoefs[4*i]/2)^2
 		newLPSVD_coefs[i][%damps] = myCoefs[4*i+1]
 		newLPSVD_coefs[i][%freqs] = myCoefs[4*i+2]
 		newLPSVD_coefs[i][%phase] = myCoefs[4*i+3]
 		
 		newLPSVD_coefs[2*numCoefs-i-1][%amps] = myCoefs[4*i]/2
-		newLPSVD_coefs[2*numCoefs-i-1][%amps2] = (myCoefs[4*i]/2)^2
 		newLPSVD_coefs[2*numCoefs-i-1][%damps] = myCoefs[4*i+1]
 		newLPSVD_coefs[2*numCoefs-i-1][%freqs] = -myCoefs[4*i+2]
 		newLPSVD_coefs[2*numCoefs-i-1][%phase] = -myCoefs[4*i+3]
@@ -635,4 +651,21 @@ Function decayingSinusoids(w,t)
 	EndFor
 	
 	Return val
+End
+
+Function PrintLPSVDCoefs(LPSVD_coefs,timestep,offset)
+	WAVE LPSVD_coefs
+	Variable Timestep
+	Variable offset
+	
+	Variable i=0,corrPhase
+	Printf "  Amp \t\t Damp \t\t Freq \t\t Phase\t\t Phase\r"
+	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
+		Printf "%6.3f\t\t", LPSVD_coefs[i][%amps]
+		Printf "%6.2f\t\t", -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
+		Printf "%6d\t\t", LPSVD_coefs[i][%freqs]/kSpeedOfLight/timestep
+		Printf "%6d\t\t", LPSVD_coefs[i][%phase]/pi*180
+		corrPhase=LPSVD_coefs[i][%phase]-2*pi*LPSVD_coefs[i][%freqs]*offset/timestep
+		Printf "%6d\r", (corrPhase-2*pi*floor(corrPhase/2/pi))/pi*180
+	EndFor
 End
