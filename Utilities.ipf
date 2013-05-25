@@ -763,13 +763,16 @@ Function/S SpectraSubtract(spectrum1, spectrum2, peak,base,name)
 	Return GetWavesDataFolder(sub,2)	//Return the full path to the result
 End
 
-Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name)
-//Remove the spectrum2 from spectrum1 by fitting the specified peak to a gaussian
+Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name,type)
+//Remove the spectrum2 from spectrum1 by fitting the specified peak to a
 //lineshape function with a cubic baseline to accurately extract the height this is 
 //done For both spectra in order to generate the appropriate scale factor.
-	WAVE spectrum1, spectrum2
-	Variable startpt,endpt
-	String name
+	WAVE spectrum1	//Spectrum from which to subtract
+	WAVE spectrum2	//this spectrum
+	Variable startpt	//Defines the start of the fit region
+	Variable endpt		//Defines the end of the fit region
+	String name		//Name of the subtracted wave
+	Variable type		//1 for gaussian 0 for lorentzian
 	
 	WAVE Spectrum1_SDW = $(NameOfWave(Spectrum1)+"_SDW")
 	WAVE Spectrum2_SDW = $(NameOfWave(Spectrum2)+"_SDW")
@@ -779,62 +782,28 @@ Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name)
 		Return ""
 	EndIf
 	
-	Variable PolyNum = 3
+	String myResults = SinglePeakArea(spectrum1,startpt,endpt,type)
 	
-	string currenttime
-	Variable length, i, j
-	Variable V_FitError = 0
-	Variable V_FitMaxIters=200
+	Variable Spec1Amp = str2num(StringFromList(0,myResults))
+	Variable Spec1Amp_SD = str2num(StringFromList(1,myResults))
 	
-	//Generate guesses For the gaussian
-	CurveFit/O/W=2/Q/N gauss spectrum1[startpt,endpt]
-	Wave W_coef
+	myResults = SinglePeakArea(spectrum2,startpt,endpt,type)
 	
-	Duplicate/O w_coef tempPeak_Coefs
-	Make/D/O/N=(PolyNum+1) tempBaseln_Coefs=0
-	
-	//Set up the fit with the gaussian and the polynomial baseline
-	String F_String="{gauss, tempPeak_Coefs, hold=\"1\"}"
-	F_String+="{poly_XOffset "+num2str(PolyNum)+", tempBaseln_Coefs}"
-	
-	//Do the fit
-	FuncFit/W=2/Q/N {string = F_String} Spectrum1[startpt, endpt]
-	WAVE W_sigma
-	
-	If(V_FitError)
-		//There was a problem with the fitting
-		Return ""
-	EndIf
-	
-	Variable Spec1Amp = tempPeak_Coefs[1]
-	Variable Spec1Amp_SD = W_Sigma[1]
-	
-	CurveFit/O/W=2/Q/N gauss spectrum2[startpt,endpt]
-	Duplicate/O w_coef tempPeak_Coefs
-	tempBaseln_Coefs=0
-	
-	FuncFit/W=2/Q/N {string = F_String} Spectrum2[startpt, endpt] /W=Spectrum2_SDW /I=1
-	
-	If(V_FitError)
-		//There was a problem with the fitting
-		Return ""
-	EndIf
-	
-	Variable Spec2Amp = tempPeak_Coefs[1]
-	Variable Spec2Amp_SD = W_Sigma[1]
+	Variable Spec2Amp = str2num(StringFromList(0,myResults))
+	Variable Spec2Amp_SD = str2num(StringFromList(1,myResults))
 	
 	//now make the sub WAVE
 	Duplicate/O spectrum1 $name
 	WAVE sub = $name
 	
 	//Make the scale factor
-	Variable/G SpectraSubtract2Scale = Spec1Amp/Spec2Amp
+	Variable SpectraSubtract2Scale = Spec1Amp/Spec2Amp
 	
 	//Do the subtraction
 	sub -= Spectrum2*SpectraSubtract2Scale
 	
 	//Error propagation on the scale factor
-	Variable/G SpectraSubtract2Scale_SD = Sqrt((Spec1Amp_SD/Spec2Amp)^2+(Spec1Amp*Spec2Amp_SD/(Spec2Amp^2))^2)
+	Variable SpectraSubtract2Scale_SD = Sqrt((Spec1Amp_SD/Spec2Amp)^2+(Spec1Amp*Spec2Amp_SD/(Spec2Amp^2))^2)
 	
 	//Time to propogate the error on the actual waves
 	Duplicate/O Spectrum1_SDW $(name+"_SDW")
@@ -842,8 +811,66 @@ Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name)
 		
 	sub_SDW = Sqrt(Spectrum1_SDW^2+(Spectrum2_SDW*SpectraSubtract2Scale)^2+(Spectrum2*SpectraSubtract2Scale_SD)^2)
 	
+	String toReturn
+	sprintf toReturn, "%.16g;%.16g;",SpectraSubtract2Scale,SpectraSubtract2Scale_SD
+	
 	//return the path to the solvent removed WAVE
 	Return GetWavesDataFolder(sub,2)
+End
+
+STATIC Function/S SinglePeakArea(spectrum,sp,ep,type)
+	WAVE Spectrum	//The spectrum to fit
+	Variable sp		//The starting point of the fit
+	Variable ep		//The end point of the fit
+	Variable type		//1 for gaussian 0 for lorenztian
+	
+	Variable PolyNum = 3
+	
+	//Generate guesses
+	If(type)
+		CurveFit/O/W=2/Q/N gauss spectrum[sp,ep]
+	Else
+		CurveFit/O/W=2/Q/N lor spectrum[sp,ep]
+	EndIf
+	
+	Wave W_coef
+	
+	W_coef[0]=0	//Make sure the offset is set to zero, we will be including a baseline later
+	
+	Duplicate/O w_coef tempPeak_Coefs
+	Make/D/FREE/O/N=(PolyNum+1) tempBaseln_Coefs=0
+	
+	//Set up the fit with the lineshape and the polynomial baseline
+	String F_String=""
+	If(type)
+		F_String="{gauss, tempPeak_Coefs, hold=\"1\"}"
+	Else
+		F_String="{lor, tempPeak_Coefs, hold=\"1\"}"
+	EndIf
+	
+	F_String+="{poly_XOffset "+num2str(PolyNum)+", tempBaseln_Coefs}"
+	
+	Variable V_FitError = 0
+	Variable V_FitMaxIters=200
+	//Do the fit
+	FuncFit/W=2/Q/N {string = F_String} Spectrum[sp,ep]
+	WAVE W_sigma
+	
+	If(V_FitError)
+		//There was a problem with the fitting
+		Return ""
+	EndIf
+	
+	String toReturn = ""
+	
+	If(type)
+		sprintf toReturn, "%.16g;%.16g;",(w_coef[1]*sqrt(pi)*w_coef[3]),sqrt(pi)*sqrt(w_sigma[1]^2+w_sigma[3]^2)
+	Else
+		sprintf toReturn, "%.16g;%.16g;",(w_coef[1]*pi/sqrt(w_coef[3])),pi/2*sqrt((4*w_coef[3]^2*w_sigma[1]^2+w_coef[1]^2*w_sigma[3]^2)/w_coef[3]^3)
+	EndIf
+	
+	//I'm using strings as a data structure
+	Return toReturn //The first position is the area, and the second is the error on the area
 End
 
 Function/S GroundSubtract1to1(timepoints,ground)
@@ -955,23 +982,34 @@ Function/S GroundSubtract(timepoints,ground,peak,base,[q])
 	Return wl
 End
 
-Function/S GroundSubtract2(timepoints,ground,startpt,endpt,[q])
+Function/S GroundSubtract2(timepoints,ground,startpt,endpt,type,[q])
 //A function that loops through all the time delays removing the ground
 //spectrum from each one using SpectraSubtract2
 	WAVE timepoints	//Time delays
 	WAVE ground		//Ground state spectrum
 	Variable startpt	//The start of the subrange which to fit
 	Variable endpt		//The end of the subrange which to fit
+	Variable type		//1 for gaussian 0 for lorenztian
 	Variable q			//Verbose?
 	
 	If(ParamIsDefault(q))
 		q=0 //Not verbose
 	EndIf
 	
-	Variable i, length,scale
-	String currenttime, wl = ""
-	Variable/G SpectraSubtract2Scale
-	Variable/G SpectraSubtract2Scale_SD
+	Variable i, length, scale, scale_sd
+	String name, currenttime, wl = ""
+	
+	WAVE ground_SDW = $(NameOfWave(ground)+"_SDW")
+	
+	If(!WaveExists(ground_SDW))
+		Print "There are no standard deviation wave for the gnd, please run average waves again"
+		Return ""
+	EndIf
+	
+	String excResults, gndResults = SinglePeakArea(ground,startpt,endpt,type)
+	
+	Variable excAmp, gndAmp = str2num(StringFromList(0,gndResults))
+	Variable excAmp_SD, gndAmp_SD = str2num(StringFromList(1,gndResults))
 	
 	Make/D/O/N=(numpnts(timepoints)) groundsubtracted, groundsubtracted_SDW
 	
@@ -981,20 +1019,51 @@ Function/S GroundSubtract2(timepoints,ground,startpt,endpt,[q])
 		currenttime = myTime(timepoints[i])
 		
 		If(!WaveExists($(currenttime+"_avg")))
-			DoAlert/T="GroundSubtract3 Failed!" 0, currenttime+"_avg does not exist!"
+			DoAlert/T="GroundSubtract2 Failed!" 0, currenttime+"_avg does not exist!"
 			Return ""
 		EndIf
+	
+		WAVE exc = $(currenttime+"_avg")
+		name = currenttime+"_subg"
 		
-		wl += SpectraSubtract2($(currenttime+"_avg"),ground,startpt,endpt,(currenttime+"_subg")) + ";"
-		groundsubtracted[i]=SpectraSubtract2Scale
-		groundsubtracted_SDW[i]=SpectraSubtract2Scale_SD
+		WAVE EXC_SDW = $(currenttime+"_avg_SDW")
+		
+		excResults = SinglePeakArea(exc,startpt,endpt,type)
+		
+		excAmp = str2num(StringFromList(0,excResults))
+		excAmp_SD = str2num(StringFromList(1,excResults))
+		
+		//now make the sub WAVE
+		Duplicate/O exc $(currenttime+"_subg")
+		WAVE sub = $name
+		
+		//Make the scale factor
+		scale = gndAmp/excAmp
+		
+		//Do the subtraction
+		sub = scale*exc-ground
+		
+		//Error propagation on the scale factor
+		scale_SD = Sqrt((gndAmp_SD/excAmp)^2+(gndAmp*excAmp_SD/(excAmp^2))^2)
+		
+		//Time to propogate the error on the actual waves
+		Duplicate/O sub $(name+"_SDW")
+		WAVE sub_SDW = $(name+"_SDW")
+			
+		sub_SDW = Sqrt(ground_SDW^2+(exc_SDW*Scale)^2+(exc*scale_sd)^2)
+		
+		//This can be much faster if we don't refit the ground over and over again. Will have to split
+		//up spectrasubtract2 into subroutines
+		wl += currenttime+"_subg;"
+		groundsubtracted[i]=Scale
+		groundsubtracted_SDW[i]=Scale_SD
 		
 		//Print out If wanted...
 		If(q)
 			If(abs(timepoints[i]) < 1000)
-				Print currenttime+"\t\t"+num2str(SpectraSubtract2Scale)
+				Print currenttime+"\t\t"+num2str(Scale)
 			Else
-				Print currenttime+"\t"+num2str(SpectraSubtract2Scale)
+				Print currenttime+"\t"+num2str(Scale)
 			EndIf
 		EndIf
 	EndFor
@@ -1018,17 +1087,17 @@ Function/S SolventSubtract(spectrum, solvent,peak,base)
 	Return toReturn
 End
 
-Function/S SolventSubtract2(spectrum, solvent, startpt,endpt)
+Function/S SolventSubtract2(spectrum, solvent, startpt,endpt,type)
 //removes the solvent spectrum from the spectrum using SpectraSubtract2
-
 	WAVE spectrum, solvent
 	Variable startpt,endpt
-	Variable/G SpectraSubtract2Scale
+	Variable type
 	
-	String toReturn = SpectraSubtract2(spectrum, solvent, startpt,endpt,(NameOfWave(spectrum)+"_ns"))
-	Print SpectraSubtract2Scale
+	String data = SpectraSubtract2(spectrum, solvent, startpt,endpt,(NameOfWave(spectrum)+"_ns"),type)
 	
-	Return toReturn
+	Print "Scale factor = "+StringFromList(0,data)
+	
+	Return NameOfWave(spectrum)+"_ns"
 End
 
 Function AddAllGround(timepoints,ground,groundadded,[extraBase])
