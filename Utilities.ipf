@@ -815,7 +815,7 @@ Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name,type)
 	sprintf toReturn, "%.16g;%.16g;",SpectraSubtract2Scale,SpectraSubtract2Scale_SD
 	
 	//return the path to the solvent removed WAVE
-	Return GetWavesDataFolder(sub,2)
+	Return toReturn
 End
 
 STATIC Function/S SinglePeakArea(spectrum,sp,ep,type)
@@ -838,7 +838,7 @@ STATIC Function/S SinglePeakArea(spectrum,sp,ep,type)
 	W_coef[0]=0	//Make sure the offset is set to zero, we will be including a baseline later
 	
 	Duplicate/O w_coef tempPeak_Coefs
-	Make/D/FREE/O/N=(PolyNum+1) tempBaseln_Coefs=0
+	Make/D/O/N=(PolyNum+1) tempBaseln_Coefs=0
 	
 	//Set up the fit with the lineshape and the polynomial baseline
 	String F_String=""
@@ -853,12 +853,13 @@ STATIC Function/S SinglePeakArea(spectrum,sp,ep,type)
 	Variable V_FitError = 0
 	Variable V_FitMaxIters=200
 	//Do the fit
+	
 	FuncFit/W=2/Q/N {string = F_String} Spectrum[sp,ep]
 	WAVE W_sigma
 	
 	If(V_FitError)
 		//There was a problem with the fitting
-		Return ""
+		Return "Error"
 	EndIf
 	
 	String toReturn = ""
