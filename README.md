@@ -9,6 +9,9 @@ My research primarily uses ultrafast lasers to perform two main types of vibrati
 ##Utilities.ipf
 A set of utilities for the processing of time resolved vibrational spectroscopic data.
 
+##DataImport.ipf
+Functions designed to import data from a FSRS instrument. The LabVIEW programs which generate the data are available [here](https://www.github.com/david-hoffman/FSRS-LabVIEW).
+
 ##FitFuncs.ipf
 A set of useful fitting functions for the ultrafast spectroscopist. Many different kinds of exponentials convoluted with a gaussian instrument response. 
 
