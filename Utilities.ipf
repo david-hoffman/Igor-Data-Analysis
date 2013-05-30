@@ -9,7 +9,6 @@ Menu "Macros"
 	"Remove point/6", RemovePoints()
 	"Calculate Bandwidth\ Duration /4",TransformLimit()
 	"-"
-	"Offset Waves/5", runWaveOffset()
 	"Auto Baseline/3", /Q, autoBaseline()
 End
 
@@ -92,11 +91,15 @@ Function Calibrate(pixel,shift,laser,ranwave)
 	//Perform a linear least squares fit
 	CurveFit/Q line calib_wavelength /X=pixel /D
 	
-	//Color the fit line
-	ModifyGraph rgb(fit_calib_wavelength)=(0,0,65535)
-	
 	//Declare references to the just created waves
 	WAVE w_coef, w_sigma
+	
+	//Store these as global variables for easy access in the future
+	Variable/G wlDeltax = W_coef[1]
+	Variable/G wlLeftx = W_coef[0]
+	
+	//Color the fit line
+	ModifyGraph rgb(fit_calib_wavelength)=(0,0,65535)
  	
  	//Make a residual shift wave
  	res_shift = shift-1e7*(1/laser - 1/(W_coef[1]*pixel+W_coef[0]))
@@ -262,7 +265,7 @@ Function displayTimePnt(timepoints)
 	Else
 		//If the withg WAVE exists I'll append it here
 		AppendToGraph/W=$timeStr withG vs shiftx
-		ModifyGraph/W=$timeStr rgb(withG)=(0,0,65535)
+		ModifyGraph/W=$timeStr rgb($nameofwave(withG))=(0,0,65535)
 		titlestring+="/withg"
 	EndIf
 	
@@ -710,7 +713,7 @@ Function/S AvgTimeWaves(timepoints, mainBase,[base1,base2,q])
 	Return wl
 End
 
-STATIC Function/S myTime(myTime)
+Function/S myTime(myTime)
 	Variable myTime
 	
 	If(myTime>0)
@@ -818,7 +821,7 @@ Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name,type)
 	Return toReturn
 End
 
-STATIC Function/S SinglePeakArea(spectrum,sp,ep,type)
+Function/S SinglePeakArea(spectrum,sp,ep,type)
 	WAVE Spectrum	//The spectrum to fit
 	Variable sp		//The starting point of the fit
 	Variable ep		//The end point of the fit
@@ -865,9 +868,9 @@ STATIC Function/S SinglePeakArea(spectrum,sp,ep,type)
 	String toReturn = ""
 	
 	If(type)
-		sprintf toReturn, "%.16g;%.16g;",(w_coef[1]*sqrt(pi)*w_coef[3]),sqrt(pi)*sqrt(w_sigma[1]^2+w_sigma[3]^2)
+		sprintf toReturn, "%.16g;%.16g;",(tempPeak_Coefs[1]*sqrt(pi)*tempPeak_Coefs[3]),sqrt(pi)*sqrt(w_sigma[1]^2+w_sigma[3]^2)
 	Else
-		sprintf toReturn, "%.16g;%.16g;",(w_coef[1]*pi/sqrt(w_coef[3])),pi/2*sqrt((4*w_coef[3]^2*w_sigma[1]^2+w_coef[1]^2*w_sigma[3]^2)/w_coef[3]^3)
+		sprintf toReturn, "%.16g;%.16g;",(tempPeak_Coefs[1]*pi/sqrt(tempPeak_Coefs[3])),pi/2*sqrt((4*tempPeak_Coefs[3]^2*w_sigma[1]^2+tempPeak_Coefs[1]^2*w_sigma[3]^2)/tempPeak_Coefs[3]^3)
 	EndIf
 	
 	//I'm using strings as a data structure
@@ -1313,8 +1316,8 @@ Function CalcTA(timepoints, mainBase, [q])
 	sumTA(timepoints)
 	
 	//Create TA matrices for easy contour viewing
-	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff"), destWave
-	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff"), destWave
+	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff"), TAROffMat
+	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff"), TAROnMat
 	
 	Return 0
 End
@@ -1462,37 +1465,6 @@ Function/S FFWaves(base,cutoff_freq,n)
 	while (1)
 	
 	Return wl
-End
-
-Function WaveOffset(offset,[base,pnt])
-//Sequentially offsets the waves matching base by an amount offset in the top graph
-//***NOTE: this will offset the waves in the order they are in on the graph***
-	Variable offset		//The amount to offset the traces
-	Variable pnt		//If used it sets the pixel pnt in each wave to 0 first before offsetting
-	String Base		//Used if you only want a subset of the traces to be offset
-	
-	String tl=TraceNameList("", ";",1)	//Pull all of the traces off the top graph
-	
-	If(!ParamIsDefault(base))
-		tl = ListMatch(tl,base)			//remove the desired subset
-	EndIf
-	
-	String traceName
-	Variable i=0
-	//Loop through the traces offseting each one
-	do
-		traceName= StringFromList(i,tl)
-		If( strlen(traceName) == 0 )
-			break
-		EndIf
-		Wave myTrace = $traceName
-		If(ParamIsDefault(pnt))
-			ModifyGraph offset($traceName)= {0,offset*i}	// Go through the traces on the top graph and offset them
-		Else
-			ModifyGraph offset($traceName)= {0,offset*i-myTrace[pnt]}
-		EndIf
-		i += 1
-	while (1)	// exit is via break statement
 End
 
 Function/S makeRaman(pos, intens, name, [type, width])
