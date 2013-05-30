@@ -26,7 +26,7 @@ This procedure file also adds items to the "Load Waves" menu:
 		"UV-vis Data ...", LoadUVvisData()
 	End
 
-The `LoadUVVisData()` procedure can be used to load and file in the JCAMP (.DX) format.
+The `LoadUVVisData()` procedure can be used to load any file in the JCAMP (.DX) format.
 
 `LoadCWData()` can be used to load any generic txt file.
 

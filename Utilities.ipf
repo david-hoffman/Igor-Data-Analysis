@@ -1,5 +1,6 @@
 #pragma rtGlobals=3		// Use modern global access method.stack
 #include <Readback ModifyStr> //used to parse strings returned by TraceInfo command
+#include ":Graphing"
 
 STATIC Constant kSpeedOfLight=2.99792458e-5 //(cm/fs)
 
@@ -199,87 +200,6 @@ Function DisplayWL(wl,[XWave])
 	EndFor
 	
 	Return 0 //successful exit
-End
-
-Function displayTimePnt(timepoints)
-	//A function to display a the ground subtracted and ground added spectra For a specified delay
-	WAVE timepoints //WAVE containing all timepoints
-	
-	WAVE shiftx = root:shiftx //Set up my wave reference to the raman shift
-		
-	If(!WaveExists(shiftx)) //Check to see that it exists
-		Print "Error, the shiftx WAVE does not exist"
-		Return -2
-	EndIf
-	
-	String timelist=""
-	Variable i=0
-	//Build a list to show in the pop up menu
-	For(i=0;i<numpnts(timepoints);i+=1)
-		timelist+=num2istr(timepoints[i])+";"
-	EndFor
-	
-	//set up the pop up menu
-	String timeStr //Variable to place the user's choice
-	//setting up the prompt
-	Prompt timeStr, "Time Points", popup timelist
-	//displaying the prompt
-	DoPrompt "Choose a time point to plot", timeStr
-	
-	If(V_Flag)
-		Print "Cancelled"
-		return 0	// user canceled
-	EndIf
-	
-	//Switch the string to a number
-	Variable timePnt = str2num(timeStr)
-	
-	//switch number back to string but with a prepended "p" or "m"
-	//in accordance with the output formatting of the FSRS instrument
-	timeStr = myTime(timePnt)
-	
-	//Setting up my WAVE references so that I can easily access the waves
-	WAVE withg = $(timeStr+"_withg")
-	WAVE subg = $(timeStr+"_subg")
-	
-	//Forming a title string For the graph I'm going to make
-	String titleString=""
-	If(abs(timePnt) >= 1000)
-		titlestring += num2str(timePnt/1000)+ " ps"
-	Else
-		titlestring+=  num2str(timePnt) + " fs"
-	EndIf
-	
-	//Error Checking
-	If(!WaveExists(subg))
-		Print "Error, the subG WAVE does not exist"
-		Return -1
-	Else
-		//No errors so I can make my graph
-		Display/N=$timeStr subG vs shiftx
-		titlestring+=" subg"
-	EndIf
-	
-	If(!WaveExists(withg))
-		Print "There is no withG WAVE"
-	Else
-		//If the withg WAVE exists I'll append it here
-		AppendToGraph/W=$timeStr withG vs shiftx
-		ModifyGraph/W=$timeStr rgb($nameofwave(withG))=(0,0,65535)
-		titlestring+="/withg"
-	EndIf
-	
-	//Make the graph look good, and set up the tools to draw a WAVE monotonic, For baseline correction
-	FancifyFSRS()
-	ShowTools/A
-	GraphWaveDraw/M
-	//Change the title of the window
-	DoWindow/T $timeStr, titleString
-	
-	//Some output For the history
-	Print "Displayed the "+num2str(timePnt)+" fs time point"
-	
-	Return 0
 End
 
 Function autoBaseline()
