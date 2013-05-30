@@ -13,7 +13,7 @@ Menu "Load Waves"
 	"Detector XC Data ... /S 2", LoadDetXCData()
 	"-"
 	"CW Data ... ", LoadCWData()
-	"UV-vis Data ...", LoadPEData()
+	"UV-vis Data ...", LoadUVvisData()
 End
 
 Function LoadCWData()
