@@ -13,6 +13,7 @@ A set of utilities for the processing of time resolved vibrational spectroscopic
 Functions designed to import data from a FSRS instrument.
 
 This procedure file also adds items to the "Load Waves" menu:
+
 	Menu "Load Waves"
 		"-"
 		"FSRS Data ... /1", LoadFSRSData()
