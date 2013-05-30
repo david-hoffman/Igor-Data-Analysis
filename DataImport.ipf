@@ -214,14 +214,14 @@ Function LoadFSRSData()
 	
 	Variable i=0	//an iterator
 	
-	String filename=IndexedFile(path,i, "????") //First file in the folder
+	String fileList=IndexedFile(path,-1, "????")	//List of files in the folder
+	fileList = ListMatch(fileList,"!.DS_Store")		//Remove the .DS_Store File (made by macs)
+	Variable length = ItemsInList(fileList)			//How many files?
+	String filename=""								//Holder for the filename
 	
-	If (CmpStr(filename,".DS_Store")==0)//for Mac's, .DS_store is a hidden file in every folder
-		i+=1//this skips the .DS_store file
-		filename=IndexedFile(path,i, "????")
-	EndIf
+	Variable myMod = ceil(length/20)
 	
-	If (CmpStr(filename,"")==0)//check to see If folder is empy
+	If (length==0)//check to see If folder is empy
 		print "Break - - No files in folder"
 		Return -1
 	EndIf
@@ -231,15 +231,20 @@ Function LoadFSRSData()
 	If(loadall==2)
 		PrintF " and Pump/Probe"
 	EndIf
-	PrintF ": "
+	PrintF ":  -/"
 	
 	//We want the load time =)
 	Variable timerRefNum = startMSTimer
 	
 	String toPrint = ""		//A string to store the names of the files we're loading
-	
 	//Loop through all the files in the folder
-	Do
+	For(i=0;i<length;i+=1)
+		If(!mod(i, myMod ))
+			Printf "*"
+		EndIf
+		//Update the file name
+		filename=StringFromList(i,fileList)
+		
 		LoadWave/N/D/Q/O/J/P=path filename//load the file
 		//Make the waves accessible to the function
 		WAVE wave0 = wave0
@@ -258,13 +263,9 @@ Function LoadFSRSData()
 			Duplicate/O wave1, $(filename+"_PumpOn")
 			Duplicate/O wave2, $(filename+"_PumpOff")
 		EndIf
-		
-		i+=1	//Increment
-		
-		//Update the file name
-		filename=IndexedFile(path,i,"????")
-	While (CmpStr(filename,"")!=0)
+	EndFor
 	
+	Printf "/-\r"
 	//Print out the names of the files loaded and some extra print out
 	Print toPrint
 	Printf "\r\rFinished loading data!\r\r"
