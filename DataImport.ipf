@@ -545,7 +545,7 @@ Function LoadDetXCData()
 					ModifyGraph axRGB(center)=(65535,0,0),tlblRGB(center)=(65535,0,0), alblRGB(center)=(65535,0,0)
 					ModifyGraph axRGB(width)=(0,0,65535),tlblRGB(width)=(0,0,65535), alblRGB(width)=(0,0,65535)
 					ModifyGraph rgb($(filename+"_Width"))=(0,0,65535)
-					ModifyGraph mirror=2,lblPos(Center)=50,lblPos(width)=50,axisEnab(detxc)={0.52,1}
+					ModifyGraph mirror(detxc)=2,lblPos(Center)=50,lblPos(width)=50,axisEnab(detxc)={0.52,1}
 					ModifyGraph axisEnab(Center)={0,0.48},axisEnab(width)={0,0.48},freePos(detxc)=0
 					ModifyGraph freePos(Center)=0,freePos(width)=0, lblPos(detxc)=50
 					ModifyGraph standoff(bottom)=0
