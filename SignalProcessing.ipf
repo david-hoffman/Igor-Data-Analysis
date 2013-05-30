@@ -659,10 +659,11 @@ Function PrintLPSVDCoefs(LPSVD_coefs,timestep,offset)
 	Variable offset
 	
 	Variable i=0,corrPhase
-	Printf "  Amp \t\t Damp \t\t Freq \t\t Phase\t\t Phase\r"
+	Printf "  Amp \t\t Width \t\t Damp \t\t Freq \t\t Phase\t\t Phase\r"
 	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
-		Printf "%6.3f\t\t", LPSVD_coefs[i][%amps]
+		Printf "%6.3f\t", LPSVD_coefs[i][%amps]
 		Printf "%6.2f\t\t", -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
+		Printf "%6.2f\t\t", -1/(LPSVD_coefs[i][%damps]/timestep)/1000
 		Printf "%6d\t\t", LPSVD_coefs[i][%freqs]/kSpeedOfLight/timestep
 		Printf "%6d\t\t", LPSVD_coefs[i][%phase]/pi*180
 		corrPhase=LPSVD_coefs[i][%phase]-2*pi*LPSVD_coefs[i][%freqs]*offset/timestep

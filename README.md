@@ -10,7 +10,26 @@ My research primarily uses ultrafast lasers to perform two main types of vibrati
 A set of utilities for the processing of time resolved vibrational spectroscopic data.
 
 ##DataImport.ipf
-Functions designed to import data from a FSRS instrument. The LabVIEW programs which generate the data are available [here](https://www.github.com/david-hoffman/FSRS-LabVIEW).
+Functions designed to import data from a FSRS instrument.
+
+This procedure file also adds items to the "Load Waves" menu:
+	Menu "Load Waves"
+		"-"
+		"FSRS Data ... /1", LoadFSRSData()
+		"Raw FSRS Data ... /S 1", LoadRawFSRSData()
+		"-"
+		"DAQ Scan Data ... /2", LoadDAQData()
+		"Detector XC Data ... /S 2", LoadDetXCData()
+		"-"
+		"CW Data ... ", LoadCWData()
+		"UV-vis Data ...", LoadUVvisData()
+	End
+
+The `LoadUVVisData()` procedure can be used to load and file in the JCAMP (.DX) format.
+
+`LoadCWData()` can be used to load any generic txt file.
+
+The LabVIEW programs which generate the FSRS data are available [here](https://www.github.com/david-hoffman/FSRS-LabVIEW).
 
 ##FitFuncs.ipf
 A set of useful fitting functions for the ultrafast spectroscopist. Many different kinds of exponentials convoluted with a gaussian instrument response. 
