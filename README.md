@@ -4,7 +4,7 @@ The license for the code contained in this repository is contained in included t
 
 I have written these [IGOR Pro](http://www.wavemetrics.com/index.html) procedures to analyze data collected during my doctoral research, as such the user interface is primarily through the command window and the documentation is incomplete. Nevertheless, I have found these procedures to be extraordinarily useful and I'd like to share them with the rest of the research community.
 
-My research primarily uses ultrafast lasers to perform two main types of vibrational spectroscopy 1.) Femtosecond Stimulated Raman Spectroscopy, FSRS, 2.) and Impulsive Stimulated Raman Spectroscopy, ISRS (*in preparation*). The relevant publications can be found [here](http://scholar.google.com/citations?user=HGG__poAAAAJ&hl=en).
+My research primarily uses ultrafast lasers to perform two main types of vibrational spectroscopy 1.) Femtosecond Stimulated Raman Spectroscopy, FSRS, 2.) and Impulsive Stimulated Raman Spectroscopy, ISRS (_in preparation_). The relevant publications can be found [here](http://scholar.google.com/citations?user=HGG__poAAAAJ&hl=en).
 
 ##Utilities.ipf
 A set of utilities for the processing of time resolved vibrational spectroscopic data.
