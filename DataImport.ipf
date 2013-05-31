@@ -16,45 +16,6 @@ Menu "Load Waves"
 	"UV-vis Data ...", LoadUVvisData()
 End
 
-Function LoadCWData()
-//A function that loads text files that have been converted from .SPE files
-//in winspec (Princeton Instruments)
-//***NOTE: this will load all the .txt files in a give folder***
-	
-	NewPath/M="Choose the folder with your data ..."/O path	//Get a path
-	
-	If( V_Flag )
-		Print "Cancelled"
-		return 0	// user canceled
-	EndIf
-	
-	Variable i = 0
-	String filename = IndexedFile(path,i, ".txt")
-	
-	If (CmpStr(filename,"")==0)//check to see If folder is empy
-		print "Break - - No files in folder"
-		Return -1
-	EndIf
-	
-	Do
-		LoadWave/N/D/O/G/P=path filename//load the file
-		WAVE wave0 = wave0	//Just pixel number
-		WAVE wave1 = wave1	//Actual data
-		
-		//Pull out the part of the filename in front of the extension
-		filename = StringFromList(0,filename,".")
-		
-		Duplicate/O wave1, $(filename+"spec")
-		
-		i+=1
-		filename=IndexedFile(path,i,".txt")
-	While (CmpStr(filename,"")!=0)
-	//Clean up
-	KillWaves wave0,wave1//Removes temporary waves
-	
-	Return 0	//Successful execution
-End
-
 Function LoadRawFSRSData()
 //A function that loads raw FSRS data as formated by the FSRS instrumentation software
 //for a single (Raman pump) chopper instrument and then calculates the Raman gain spectra as well
@@ -186,6 +147,80 @@ Function LoadUVvisData()
 	
 	//Clean up
 	KillWaves xWave, data
+	
+	Return 0	//Successful execution
+End
+
+Function LoadCWData()
+//A function that loads text files that have been converted from .SPE files
+//in winspec (Princeton Instruments)
+//***NOTE: this will load all the .txt files in a give folder***
+	
+	//Ask the user to choose the path to the folder where the data lives
+	NewPath/M="Choose the folder with your data ..."/O path 
+	
+	If( V_Flag )
+		Print "Cancelled"
+		return 0	// user canceled
+	EndIf
+	
+	Variable i=0	//an iterator
+	
+	String fileList=IndexedFile(path,-1, ".txt")	//List of files in the folder
+	Variable length = ItemsInList(fileList)			//How many files?
+	String filename=""								//Holder for the filename
+	
+	Variable myMod = ceil(length/20)
+	
+	If (length==0)//check to see If folder is empy
+		print "Break - - No files in folder"
+		Return -1
+	EndIf
+	
+	//Some print out
+	printf "Loading CW spectra"
+	PrintF ":  -/"
+	
+	//We want the load time =)
+	Variable timerRefNum = startMSTimer
+	
+	String toPrint = ""		//A string to store the names of the files we're loading
+	//Loop through all the files in the folder
+	For(i=0;i<length;i+=1)
+		If(!mod(i, myMod ))
+			Printf "*"
+		EndIf
+		//Update the file name
+		filename=StringFromList(i,fileList)
+		
+		LoadWave/N/D/Q/O/J/P=path filename//load the file
+		//Make the waves accessible to the function
+		WAVE wave0 = wave0
+		WAVE wave1 = wave1
+				
+		If(mod(i,10)==0)
+			toprint+= "\r"
+		EndIf
+		
+		toPrint+= filename+", "
+
+		//copy waves, and name them appropriately
+		filename = StringFromList(0,filename,".")
+		Duplicate/O wave1, $(filename+"_spec")
+	EndFor
+	
+	Printf "/-\r"
+	//Print out the names of the files loaded and some extra print out
+	Print toPrint
+	Printf "\r\rFinished loading data!\r\r"
+	Printf "%g spectra were loaded in this import\r", i
+	
+	//Print out the time it took to load the files.
+	Variable microSeconds = stopMSTimer(timerRefNum)
+	
+	Printf "Time to load: %02d:%05.2f\r", microSeconds/60e6, mod(microSeconds,60e6)/1e6
+	
+	KillWaves/Z wave0,wave1//Removes temporary waves
 	
 	Return 0	//Successful execution
 End
