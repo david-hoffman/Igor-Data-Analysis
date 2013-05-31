@@ -1011,13 +1011,15 @@ Function/S SolventSubtract(spectrum, solvent,peak,base)
 	Return toReturn
 End
 
-Function/S SolventSubtract2(spectrum, solvent, startpt,endpt,type)
+Function/S SolventSubtract2(spectrum, solvent, sp,ep,type)
 //removes the solvent spectrum from the spectrum using SpectraSubtract2
-	WAVE spectrum, solvent
-	Variable startpt,endpt
-	Variable type
+	WAVE spectrum
+	WAVE solvent
+	Variable sp
+	Variable ep
+	Variable type	//1 for gaussian 0 for lorenztian
 	
-	String data = SpectraSubtract2(spectrum, solvent, startpt,endpt,(NameOfWave(spectrum)+"_ns"),type)
+	String data = SpectraSubtract2(spectrum, solvent, sp,ep,(NameOfWave(spectrum)+"_ns"),type)
 	
 	Print "Scale factor = "+StringFromList(0,data)
 	
@@ -1156,6 +1158,21 @@ Function CalcTA(timepoints, mainBase, [q])
 		q = 1
 	EndIf
 	
+	//Some timing
+	Variable TimerRefNum = StartMSTimer
+	
+	//Check to see if calibrate has been run, if so we can set the wave scaling in nm
+	NVAR/Z myLeftx = wlLeftx
+	NVAR/Z myDeltax = wlDeltax
+	
+	Variable canScale = 0
+	
+	If (NVAR_Exists(myLeftx) && NVAR_Exists(myDeltax))	// No such global numeric variable?
+		canScale = 1
+	Else
+		Print "Calibrate has not been run yet, waves will not be scaled."
+	Endif
+	
 	//First thing to do is to calculate the ground Raman pump on spectrum
 	String pathToGndOn = averagewaves(mainBase+"*gr*pumpon","gnd_pumpon_avg",q=q)
 	//Error checking
@@ -1203,8 +1220,8 @@ Function CalcTA(timepoints, mainBase, [q])
 		TAWaveNameOff = currenttime+"_TAROff"
 		
 		//Make the waves
-		Make/D/O/N=(numpnts(GndOn)) $TAWaveNameOn, $TAWaveNameOff 
-		Make/D/O/N=(numpnts(GndOn)) $(TAWaveNameOn+"_SDW"), $(TAWaveNameOff+"_SDW")
+		Make/D/O/N=(numpnts(GndOn)) $TAWaveNameOn=0, $TAWaveNameOff=0
+		Make/D/O/N=(numpnts(GndOn)) $(TAWaveNameOn+"_SDW")=0, $(TAWaveNameOff+"_SDW")=0
 		
 		//Make some local references
 		WAVE exWaveOn = $exWaveNameOn
@@ -1231,75 +1248,33 @@ Function CalcTA(timepoints, mainBase, [q])
 		TAROn_SDW=sqrt((exWaveOn_SDW/(exWaveOn*log(10)))^2+(GndOn_SDW/(GndOn*log(10)))^2)
 		TAROff_SDW=sqrt((exWaveOff_SDW/(exWaveOff*log(10)))^2+(GndOff_SDW/(GndOff*log(10)))^2)
 		
+		If(canScale)
+			SetScale/P x,myLeftx,myDeltax,"nm", TAROn, TAROff, TAROn_SDW, TAROff_SDW
+		EndIF
+		
 	EndFor
-	//Bin the TA by 100 pixels each
-	sumTA(timepoints)
 	
 	//Create TA matrices for easy contour viewing
 	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff"), TAROffMat
 	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff"), TAROnMat
 	
-	Return 0
-End
-
-Function sumTA(timepoints)
-//This function calculates the summed transient absorption.
-	WAVE timepoints	//Time delays
-	Variable i,j,length=numpnts(timepoints)
-	String currenttime=""
-	Make/D/O/N=(length) sumTAROff,sumTAROn
-	Make/D/O/N=(length) sumTAROff_SDW,sumTAROn_SDW
+	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff_SDW"), TAROffMat_SDW
+	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff_SDW"), TAROnMat_SDW
 	
-	
-	For(j=0;j<13;j+=1)
-		Make/D/O/N=(length) $("sumTAROff"+num2str(j))
-		
-		Make/D/O/N=(length)  $("sumTAROff"+num2str(j)+"_SDW")
-		
-		Make/D/O/N=(length) $("sumTAROn"+num2str(j))
-		
-		Make/D/O/N=(length)  $("sumTAROn"+num2str(j)+"_SDW")
+	//Bin the TA by 100 pixels each
+	For(i=0;i<13;i+=1)
+		IntegrateMatrix(TAROffMat,"sumTAROff"+num2str(i),sp=100*i+20,ep=100*(i+1)+20)
+		IntegrateMatrix(TAROnMat,"sumTAROn"+num2str(i),sp=100*i+20,ep=100*(i+1)+20)
 	EndFor
 	
-	String TAROffBase="_TAROff"
-	String TAROnBase="_TAROn"
+	IntegrateMatrix(TAROffMat,"sumTAROff"+num2str(i),sp=20,ep=1320)
+	IntegrateMatrix(TAROnMat,"sumTAROff"+num2str(i),sp=20,ep=1320)
 	
-	For(i=0;i<length;i+=1)
-		currenttime = myTime(timepoints[i])
-		
-		For(j=0;j<13;j+=1)
-			Make/D/O/N=(length) $("sumTAROff"+num2str(j))
-			WAVE sumTAROffj=$("sumTAROff"+num2str(j))
-			
-			Make/D/O/N=(length)  $("sumTAROff"+num2str(j)+"_SDW")
-			WAVE sumTAROffj_SDW = $("sumTAROff"+num2str(j)+"_SDW")
-			
-			Make/D/O/N=(length) $("sumTAROn"+num2str(j))
-			WAVE sumTAROnj = $("sumTAROn"+num2str(j))
-			
-			Make/D/O/N=(length)  $("sumTAROn"+num2str(j)+"_SDW")
-			WAVE sumTAROnj_SDW = $("sumTAROn"+num2str(j)+"_SDW")
-		
-			sumTAROffj[i]=sum($(currenttime+TAROffBase),100*j+20,100*(j+1)+20)
-			sumTAROnj[i]=sum($(currenttime+TAROnBase),100*j+20,100*(j+1)+20)
-		
-			sumTAROffj_SDW[i]=sumSDev($(currenttime+TAROffBase+"_SDW"),100*j+20,100*(j+1)+20)
-			sumTAROnj_SDW[i]=sumSDev($(currenttime+TAROnBase+"_SDW"),100*j+20,100*(j+1)+20)
-		
-		EndFor
-		
-		sumTAROff[i]=sum($(currenttime+TAROffBase),20,1320)
-		sumTAROn[i]=sum($(currenttime+TAROnBase),20,1320)
-		
-		sumTAROff_SDW[i]=sumSDev($(currenttime+TAROffBase),20,1320)
-		sumTAROn_SDW[i]=sumSDev($(currenttime+TAROnBase),20,1320)
-		
-	EndFor
-	
+	//Display the output
 	If(WinType("TotalSumTAGraph")==0)//The window does NOT already exist
-		Display/N=TotalSumTAGraph sumTAROn sumTAROff vs timepoints as "Total Sum TA"
-		ErrorBars sumTAROn Y,WAVE=(sumTAROn_SDW,sumTAROn_SDW)
-		ErrorBars sumTAROff Y,WAVE=(sumTAROff_SDW,sumTAROff_SDW)
+		Display/N=TotalSumTAGraph $"sumTAROn" $"sumTAROff" vs timepoints as "Total Sum TA"
+		ErrorBars $"sumTAROn" Y,WAVE=($"sumTAROn_SDW",$"sumTAROn_SDW")
+		ErrorBars $"sumTAROff" Y,WAVE=($"sumTAROff_SDW",$"sumTAROff_SDW")
 		FancifyTA()
 		ModifyGraph rgb(sumTAROn)=(0,0,0)
 		Legend/C/N=text0/J "TA "+date()+"\r\\s(sumTAROn) Rpu On\r\\s(sumTAROff) Rpu Off"
@@ -1307,9 +1282,9 @@ Function sumTA(timepoints)
 	
 	If(WinType("SumTAROffGraph")==0)//The window does NOT already exist
 		Display/N=SumTAROffGraph as "Sum TA Rpu Off"
-		For(j=0;j<13;j+=1)
-			AppendToGraph $("sumTAROff"+num2str(j)) vs timepoints
-			ErrorBars $("sumTAROff"+num2str(j)) Y,WAVE=($("sumTAROff"+num2str(j)+"_SDW"),$("sumTAROff"+num2str(j)+"_SDW"))
+		For(i=0;i<13;i+=1)
+			AppendToGraph $("sumTAROff"+num2str(i)) vs timepoints
+			ErrorBars $("sumTAROff"+num2str(i)) Y,WAVE=($("sumTAROff"+num2str(i)+"_SDW"),$("sumTAROff"+num2str(i)+"_SDW"))
 		EndFor
 		FancifyTA()
 		RainbowWaves()
@@ -1317,24 +1292,18 @@ Function sumTA(timepoints)
 	
 	If(WinType("SumTAROnGraph")==0)//The window does NOT already exist
 		Display/N=SumTAROnGraph as "Sum TA Rpu On"
-		For(j=0;j<13;j+=1)
-			AppendToGraph $("sumTAROn"+num2str(j)) vs timepoints
-			ErrorBars $("sumTAROn"+num2str(j)) Y,WAVE=($("sumTAROn"+num2str(j)+"_SDW"),$("sumTAROn"+num2str(j)+"_SDW"))
+		For(i=0;i<13;i+=1)
+			AppendToGraph $("sumTAROn"+num2str(i)) vs timepoints
+			ErrorBars $("sumTAROn"+num2str(i)) Y,WAVE=($("sumTAROn"+num2str(i)+"_SDW"),$("sumTAROn"+num2str(i)+"_SDW"))
 		EndFor
 		FancifyTA()
 		RainbowWaves()
 	EndIf
-End
-
-STATIC Function sumSDev(SDW,startp,endp)
-//Pretty self explanatory
-	WAVE SDW
-	Variable startp, endp
 	
-	Duplicate/O/FREE SDW VarW
-	VarW = SDW^2
+	Variable microSeconds = stopMSTimer(timerRefNum)
+	Printf "Time to calculate: %02d:%05.2f\r", microSeconds/60e6, mod(microSeconds,60e6)/1e6
 	
-	return sqrt(sum(VarW,startp,endp))
+	Return 0
 End
 
 Function FourierFilter(spectrum,cutoff_freq)
@@ -1499,18 +1468,35 @@ Function/S IntegrateMatrix(Matrix,name,[sp,ep])
 		ep=length
 	EndIf
 	
+	Variable CalcError = 0
+	//Does the matrix have an error wave associated with it?
+	If(WaveExists($(NameOfWave(Matrix)+"_SDW")))
+		CalcError = 1
+		Duplicate/O/FREE $(NameOfWave(Matrix)+"_SDW") MatrixVar
+		MatrixVar = MatrixVar^2
+	EndIf
+	
 	//Make my waves
 	Make/D/O/N=(DimSize(Matrix,1)) $name=0
-	
 	//Make the waves available to the function
 	WAVE tempInt = $name
-	//Transfer the wave scaling from the matrix to the 
-	SetScale/P x DimOffset(Matrix,1),DimDelta(Matrix,1),"", tempInt
+	//Transfer the wave scaling from the matrix to the integrated wave
+	SetScale/P x DimOffset(Matrix,1),DimDelta(Matrix,1),"", tempInt	
 	
+	If(CalcError)
+		Make/D/O/N=(DimSize(Matrix,1)) $(name+"_SDW")=0
+		WAVE tempIntSDW = $(name+"_SDW")
+		SetScale/P x DimOffset(Matrix,1),DimDelta(Matrix,1),"", tempIntSDW
+	EndIf
 	
 	For(i=sp;i<ep;i+=1)
 		tempInt += Matrix[i][p]//Assign column i to tempFit
+		If(CalcError)
+			TempIntSDW += MatrixVar[i][p] 
+		EndIf
 	EndFor
+	
+	TempIntSDW = sqrt(TempIntSDW)
 	
 	//Add a note to the resulting wave
 	Note tempInt, "The command that generated this wave is: "
