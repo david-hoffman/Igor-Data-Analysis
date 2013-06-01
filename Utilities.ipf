@@ -424,40 +424,36 @@ Function/S AverageWaves(baseName,avgName,[q])
 	String avgName		//The name you want For the result
 	Variable q				//Quiet! Do you want history output or not
 	
-	String wl, firstTrace, tn	//Variables For the function
-	
 	If(ParamIsDefault(q))
 		q = 1
 	EndIf
 	
-	wl = WaveList(baseName,";","")			//a list of waves matching the base name is generated
-	firstTrace = StringFromList(0,wl,";")	//pulls the first trace name from the list created
+	String wl = WaveList(baseName,";","")	//a list of waves matching the base name is generated
+	Variable length =ItemsInList(wl)		//Number of Items in the list
 	
 	Variable V_numNans=0
 	
 	String toPrint = ""	//We will build up a printout string as we go instead of printing to the history directly
 	
-	//If list is NOT empty proceed
-	If (strlen(firstTrace) !=0)
+	String tn = ""	//Variables For the function
+	If (length !=0)
 		
 		If(q)
-			toPrint+= "Beginning averaging waves...\r  First WAVE is: " + firstTrace+"\r"
+			toPrint+= "Beginning averaging waves...\r"
 		EndIf
 		
-		Duplicate/O $firstTrace $avgName				//Creates a WAVE that is the avg output WAVE
-		Duplicate/O $firstTrace $(avgName+"_SDW")	//Creates a WAVE that is the SDW output WAVE
+		//Creates a WAVE that is the avg output WAVE
+		Duplicate/O $StringFromList(0,wl, ";") $avgName, $(avgName+"_SDW")
 		
 		WAVE avg =$avgName					//create a WAVE reference to the just created WAVE
 		WAVE SDW =$(avgName+"_SDW")	//create a WAVE reference to the just created WAVE
 		
-		SDW=SDW^2	//well be doing things squared first
+		avg=0
+		SDW=0
 		
-		Variable i = 1,j=0
-		do //adds all the traces together
+		Variable i = 0,j=0
+		For(i=0;i<length;i+=1)
 			tn = StringFromList(i,wl, ";")	//Pull the next string name
-			If (strlen(tn) ==0)				//See if its empty
-				break							//If it is, then exit the loop
-			EndIf
 			
 			WaveStats/Q $tn					//Check to see if there are any NaNs			
 			If(V_numNaNs==0)
@@ -467,26 +463,29 @@ Function/S AverageWaves(baseName,avgName,[q])
 				WAVE source = $tn
 				avg += source
 				SDW +=source^2
-				i +=1
 			Else
 				If(q)
 					toPrint+= "  "+tn+" had some NaNs and will NOT be included in the average\r"
 				EndIf
 				j+=1
-				i+=1
 			EndIf
-		while (1)
+		EndFor
+		
 		i-=j	//The number of waves ACTUALLY included in the average
+		
 		If(q)
 			toPrint+= "  There were "+num2str(j)+" waves not included in the average\r"
 			toPrint +="  Dividing by number of waves: "+num2istr(i)+"\r"
 		EndIf
+		
 		avg /= i										//divide by number of waves
 		SDW=Sqrt(SDW/(i-1)-i/(i-1)*avg^2)	//calculated the standard deviation
+		
 		If(q)
 			toPrint += "  Done averaging waves!\r"
 			Print toPrint
 		EndIf
+		
 		Return GetWavesDataFolder(avg,2)	// return the full path to the wave
 	Else
 		DoAlert 0, "No waves could be found that match \"" + baseName + "\""
@@ -720,10 +719,10 @@ Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name,type)
 	WAVE sub = $name
 	
 	//Make the scale factor
-	Variable SpectraSubtract2Scale = Spec1Amp/Spec2Amp
+	Variable Scale = Spec1Amp/Spec2Amp
 	
 	//Do the subtraction
-	sub -= Spectrum2*SpectraSubtract2Scale
+	sub -= Spectrum2*Scale
 	
 	//Error propagation on the scale factor
 	Variable SpectraSubtract2Scale_SD = Sqrt((Spec1Amp_SD/Spec2Amp)^2+(Spec1Amp*Spec2Amp_SD/(Spec2Amp^2))^2)
@@ -732,10 +731,10 @@ Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name,type)
 	Duplicate/O Spectrum1_SDW $(name+"_SDW")
 	WAVE sub_SDW = $(name+"_SDW")
 		
-	sub_SDW = Sqrt(Spectrum1_SDW^2+(Spectrum2_SDW*SpectraSubtract2Scale)^2+(Spectrum2*SpectraSubtract2Scale_SD)^2)
+	sub_SDW = Sqrt(Spectrum1_SDW^2+(Spectrum2_SDW*Scale)^2+(Spectrum2*SpectraSubtract2Scale_SD)^2)
 	
 	String toReturn
-	sprintf toReturn, "%.16g;%.16g;",SpectraSubtract2Scale,SpectraSubtract2Scale_SD
+	sprintf toReturn, "%.16g;%.16g;",Scale,SpectraSubtract2Scale_SD
 	
 	//return the path to the solvent removed WAVE
 	Return toReturn
@@ -962,9 +961,11 @@ Function/S GroundSubtract2(timepoints,ground,startpt,endpt,type,[q])
 		WAVE sub = $name
 		
 		//Make the scale factor
+		//***NOTE: Here we are scaling the excited state to the ground state***//
 		scale = gndAmp/excAmp
 		
 		//Do the subtraction
+		//The ground state is acting as our "standard" for Raman pump power"
 		sub = scale*exc-ground
 		
 		//Error propagation on the scale factor
@@ -1019,6 +1020,7 @@ Function/S SolventSubtract2(spectrum, solvent, sp,ep,type)
 	Variable ep
 	Variable type	//1 for gaussian 0 for lorenztian
 	
+	//***NOTE: we are scaling the solvent to the spectrum, this is necessary to be internally consistent***
 	String data = SpectraSubtract2(spectrum, solvent, sp,ep,(NameOfWave(spectrum)+"_ns"),type)
 	
 	Print "Scale factor = "+StringFromList(0,data)
@@ -1165,11 +1167,9 @@ Function CalcTA(timepoints, mainBase, [q])
 	NVAR/Z myLeftx = wlLeftx
 	NVAR/Z myDeltax = wlDeltax
 	
-	Variable canScale = 0
+	Variable canScale = NVAR_Exists(myLeftx) && NVAR_Exists(myDeltax)
 	
-	If (NVAR_Exists(myLeftx) && NVAR_Exists(myDeltax))	// No such global numeric variable?
-		canScale = 1
-	Else
+	If (!canScale)	// No such global numeric variable?
 		Print "Calibrate has not been run yet, waves will not be scaled."
 	Endif
 	
@@ -1496,7 +1496,9 @@ Function/S IntegrateMatrix(Matrix,name,[sp,ep])
 		EndIf
 	EndFor
 	
-	TempIntSDW = sqrt(TempIntSDW)
+	If(calcError)
+		TempIntSDW = sqrt(TempIntSDW)
+	Endif
 	
 	//Add a note to the resulting wave
 	Note tempInt, "The command that generated this wave is: "
