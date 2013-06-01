@@ -667,7 +667,7 @@ Function LoadISRSData()
 	
 	//The following open command does not actually open the selected file it just
 	//returns the selected files paths in the string S_filename for later use
-	Open/F="????"/D/R/MULT=1/M="Choose Det XC files" refNum
+	Open/F="????"/D/R/MULT=1/M="Choose Det ISRS files" refNum
 	
 	//move the paths so a safer location
 	String outputPaths = S_fileName
