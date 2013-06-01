@@ -9,6 +9,12 @@ My research primarily uses ultrafast lasers to perform two main types of vibrati
 ##Utilities.ipf
 A set of utilities for the processing of time resolved vibrational spectroscopic data.
 
+Some notes on specific functions
+
+- `GroundSubtract2(timepoints,ground,startpt,endpt,type,[q])`: This function loops through all the time delays subtracting the ground state spectrum from the raw excited state spectra by scaling the excited state spectra to the ground state using a solvent feature. In this way fluctuations in Raman pump power are controlled for using the solvent as an internal standard. This is particularly important when the Raman pump is near a transient absorption feature as this algorithm will correct for any transient attenuation of the Raman pump.
+
+- `SolventSubtract2(spectrum, solvent, sp, ep, type)`: This function scales the `solvent` _to_ the `spectrum`. This is necessary to be internally consistend with `GroundSubtract2`.
+
 ##DataImport.ipf
 Functions designed to import data from a FSRS instrument.
 
