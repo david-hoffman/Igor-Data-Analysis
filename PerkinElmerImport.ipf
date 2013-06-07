@@ -1,5 +1,10 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
+Menu "Load Waves"
+	"-"
+	"Perkin-Elmer Data ... ", loadPEData()
+End
+
 Function loadPEData()
 //A function that loads Perkin Elmer's propietary data format
 //Initially designed to read data from their Lambda 2 and Lambda 6
