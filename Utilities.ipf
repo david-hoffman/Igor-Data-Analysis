@@ -1082,7 +1082,7 @@ Function AddGround(timepoint,amount,timepoints,ground,groundadded,[extraBase])
 	EndIf
 End
 
-Function KillMultiWaves(base)
+Function KillWavesMulti(base)
 //Allows you to kill waves with a certain base name
 	String base	//DON'T FORGET TO INCLUDE THE * and be careful
 	
@@ -1256,10 +1256,10 @@ Function CalcTA(timepoints, mainBase, [q])
 	
 	//Create TA matrices for easy contour viewing
 	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff"), TAROffMat
-	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff"), TAROnMat
+	Concatenate/O  makeTimeWL(timepoints, "", "_TAROn"), TAROnMat
 	
 	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff_SDW"), TAROffMat_SDW
-	Concatenate/O  makeTimeWL(timepoints, "", "_TAROff_SDW"), TAROnMat_SDW
+	Concatenate/O  makeTimeWL(timepoints, "", "_TAROn_SDW"), TAROnMat_SDW
 	
 	//Bin the TA by 100 pixels each
 	For(i=0;i<13;i+=1)
@@ -1267,8 +1267,8 @@ Function CalcTA(timepoints, mainBase, [q])
 		IntegrateMatrix(TAROnMat,"sumTAROn"+num2str(i),sp=100*i+20,ep=100*(i+1)+20)
 	EndFor
 	
-	IntegrateMatrix(TAROffMat,"sumTAROff"+num2str(i),sp=20,ep=1320)
-	IntegrateMatrix(TAROnMat,"sumTAROff"+num2str(i),sp=20,ep=1320)
+	IntegrateMatrix(TAROffMat,"sumTAROff",sp=20,ep=1320)
+	IntegrateMatrix(TAROnMat,"sumTAROn",sp=20,ep=1320)
 	
 	//Display the output
 	If(WinType("TotalSumTAGraph")==0)//The window does NOT already exist
