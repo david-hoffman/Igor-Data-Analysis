@@ -1,6 +1,6 @@
 #Igor Data Analysis
 
-The license for the code contained in this repository is contained in included the [`license.txt`](https://github.com/david-hoffman/Igor-Data-Analysis/blob/master/License.txt) file.
+The license for the code contained in this repository is contained in included the [**license.txt**](https://github.com/david-hoffman/Igor-Data-Analysis/blob/master/License.txt) file.
 
 I have written these [IGOR Pro](http://www.wavemetrics.com/index.html) procedures to analyze data collected during my doctoral research, as such the user interface is primarily through the command window and the documentation is incomplete. Nevertheless, I have found these procedures to be extraordinarily useful and I'd like to share them with the rest of the research community.
 
