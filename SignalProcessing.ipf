@@ -58,6 +58,7 @@ Function LPSVD(signal,[M,LFactor,RemoveBias])
 	MatrixOp/O/C  A = Conj(A)		//Take the conjugate of the Hankel Matrix to form the prediction matrix
 	
 	Duplicate/C/O/R=[0,N-L-1] Signal, h	//Set up the data vector, the vector to be "predicted"
+	h = Conj(h)						//Take the conjugate
 	
 	MatrixSVD A			//Perform an SVD on the Hankel Matrix
 	
@@ -103,7 +104,7 @@ Function LPSVD(signal,[M,LFactor,RemoveBias])
 	//Redimension the matrices to speed up the matrix multiplication step
 	redimension/N=(M,-1) VT	//Make VT the "right" size
 	Redimension/N=(-1,M) U	//Make U the "right" size
-	MatrixOp/C/O LPCoefs= (-1)*VT^h x DiagRC(S,M,M) x U^h x h
+	MatrixOp/C/O LPCoefs= cmplx(-1,0)*VT^h x DiagRC(S,M,M) x U^h x h
 	
 	//Error check: are there any NaNs or INFs in LPCoefs?
 	Variable V_numNans, V_numINFs
@@ -111,6 +112,7 @@ Function LPSVD(signal,[M,LFactor,RemoveBias])
 	If(V_numNans!=0 || V_numINFs!=0)
 		Print "There has been an error generating the prediction-error filter polynomial"
 		SetDataFolder savDF	// Restore current DF.
+		timerRef = stopMSTimer(timerRef)
 		return -2
 	EndIf
 	
@@ -138,6 +140,7 @@ Function LPSVD(signal,[M,LFactor,RemoveBias])
 	If(numpnts(usedRoots)==0)
 		Print "There has been an error finding the real poles"
 		SetDataFolder savDF	// Restore current DF.
+		timerRef = stopMSTimer(timerRef)
 		return -1
 	EndIf
 	
@@ -169,8 +172,12 @@ Function LPSVD(signal,[M,LFactor,RemoveBias])
 	LPSVD_coefs[][%amps]=Real(r2polar(cAmps[p]))
 	LPSVD_coefs[][%phase]=Imag(r2polar(cAmps[p]))
 	
+	//Calculate the errors
+	WAVE Errors = $CalculateLPSVDError(LPSVD_coefs,Signal)
+	
 	//Move the results to the original data folder
 	Duplicate/O LPSVD_coefs, $(savDF+"LPSVD_Coefs")
+	Duplicate/O Errors, $(savDF+"sigma_LPSVD_Coefs")
 	
 	SetDataFolder savDF	// Restore current DF.
 	
@@ -179,6 +186,118 @@ Function LPSVD(signal,[M,LFactor,RemoveBias])
 	
 	//Output the calculation time
 	Print "LPSVD time: "+num2str(stopMSTimer(timerRef)*1e-6)+" seconds"
+End
+
+Function/S CalculateLPSVDError(LPSVD_coefs,Data)
+	//A function that estimates the errors on the LPSVD parameters using the Cramer-Rao
+	//lower bound (http://en.wikipedia.org/wiki/Cram%C3%A9r%E2%80%93Rao_bound).
+	//This implementation is based on the work of Barkhuijsen et al (http://dx.doi.org/10.1016/0022-2364(86)90446-4)
+	WAVE LPSVD_coefs	//Coefficients calculated from the LPSVD algorithm
+	WAVE Data			//The data from which the LPSVD coefficients were calculated
+	
+	//***The first thing to do is to calculated the RMS of the residuals***
+	//We reconstruct the model from the parameters
+	reconstructSignal(LPSVD_coefs,"recon_"+NameOfWave(Data),numpnts(Data),DimDelta(data, 0),dataReal=0)
+	//Note that the spacing doesn't really mattter and we want complex data returned (i.e. dataReal = 0)
+	WAVE/C recon = $("recon_"+NameOfWave(Data))
+	//Make the residual wave
+	Duplicate/C/O recon $("res_"+NameOfWave(Data))
+	WAVE/C res = $("res_"+NameOfWave(Data))
+	res = data - recon
+	
+	//Calculate the RMS
+	WaveStats/Q/C=4 res
+	WAVE M_WaveStats
+	Variable RMS = M_WaveStats[5]
+
+	Duplicate/O LPSVD_coefs $("sigma_"+NameOfWave(LPSVD_coefs))
+	Wave Errors = $("sigma_"+NameOfWave(LPSVD_coefs))
+	Variable i,j	//For loop iterators
+	If(1)//Change this to test if assumptions hold...
+		For(i=0;i<DimSize(Errors,0);i+=1)
+			//Right now I'm using the results of an analytical theory
+			//dx.doi.org/10.1109/78.80943
+			Errors[i][0] = Sqrt(RMS^2*2*(-LPSVD_coefs[i][2]))
+			Errors[i][1] = Sqrt(RMS^2*4*(-LPSVD_coefs[i][2])^3/(-LPSVD_coefs[i][0])^2)
+			Errors[i][2] = Sqrt(RMS^2*4*(-LPSVD_coefs[i][2])^3/(-LPSVD_coefs[i][0])^2)
+			Errors[i][3] = Sqrt(RMS^2*2*(-LPSVD_coefs[i][2])/(-LPSVD_coefs[i][0])^2)
+		EndFor
+		Return  GetWavesDataFolder(Errors,2)//exit
+	EndIf
+	
+	//Next we need to generate the Fisher matrix
+	Variable size = DimSize(LPSVD_coefs,0)*4
+	Make/D/O/N=(size,size) FisherMat = 0
+	Variable Chi0, Chi1, Chi2
+	Variable Zeta0, Zeta1, Zeta2
+	Variable ampi,dampi,freqi,phasei
+	Variable ampj,dampj,freqj,phasej
+	Variable mySum
+	//We'll reuse res for the intermediate calculations
+	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
+		ampi = LPSVD_coefs[i][%amps]
+		freqi = LPSVD_coefs[i][%freqs]
+		dampi = LPSVD_coefs[i][%damps]
+		phasei = LPSVD_coefs[i][%phase]
+		For(j=0;j<DimSize(LPSVD_coefs,0);j+=1)
+			ampj = LPSVD_coefs[j][%amps]
+			freqj = LPSVD_coefs[j][%freqs]
+			dampj = LPSVD_coefs[j][%damps]
+			phasej = LPSVD_coefs[j][%phase]
+			
+			res = exp(p*cmplx(dampi-dampj,2*pi*(freqi-freqj))+cmplx(0,1)*(phasei-phasej))
+			WaveStats/Q/C=3 res
+			WAVE M_WaveStats
+			Chi0 =  M_WaveStats[23][0]
+			Zeta0 =  M_WaveStats[23][1]
+			
+			res = p*exp(p*cmplx(dampi-dampj,2*pi*(freqi-freqj))+cmplx(0,1)*(phasei-phasej))
+			WaveStats/Q/C=3 res
+			WAVE M_WaveStats
+			Chi1 =  M_WaveStats[23][0]
+			Zeta1 =  M_WaveStats[23][1]
+			
+			res = p^2*exp(p*cmplx(dampi-dampj,2*pi*(freqi-freqj))+cmplx(0,1)*(phasei-phasej))
+			WaveStats/Q/C=3 res
+			WAVE M_WaveStats
+			Chi2 =  M_WaveStats[23][0]
+			Zeta2 =  M_WaveStats[23][1]
+			
+			//First Row
+			FisherMat[4*i+0][4*j+0] = ampi*ampj*Chi2
+			FisherMat[4*i+0][4*j+1] = -ampi*zeta1
+			FisherMat[4*i+0][4*j+2] = ampi*ampj*zeta2
+			FisherMat[4*i+0][4*j+3] = ampi*ampj*chi1
+			//Second Row
+			FisherMat[4*i+1][4*j+0] = ampj*zeta1
+			FisherMat[4*i+1][4*j+1] = chi0
+			FisherMat[4*i+1][4*j+2] = -ampj*chi1
+			FisherMat[4*i+1][4*j+3] = ampj*zeta0
+			//Third Row
+			FisherMat[4*i+2][4*j+0] = -ampi*ampj*zeta2
+			FisherMat[4*i+2][4*j+1] = -ampi*chi1
+			FisherMat[4*i+2][4*j+2] = ampi*ampj*chi2
+			FisherMat[4*i+2][4*j+3] = -ampi*ampj*zeta1
+			//Fourth Row
+			FisherMat[4*i+3][4*j+0] = ampi*ampj*chi1
+			FisherMat[4*i+3][4*j+1] = -ampi*zeta0
+			FisherMat[4*i+3][4*j+2] = ampi*ampj*zeta1
+			FisherMat[4*i+3][4*j+3] = ampi*ampj*chi0
+
+		EndFor
+	EndFor
+	
+	MatrixInverse/O FisherMat		//Replace the Fisher matrix with its inverse
+	FisherMat*=(2*RMS^2)
+	//Fill up the Error wave with the errors.
+	
+	For(i=0;i<DimSize(Errors,0);i+=1)
+		For(j=0;j<4;j+=1)
+			Errors[i][j] = Sqrt((FisherMat[j+i*4][j+i*4]))
+		EndFor
+	EndFor
+	
+	Return  GetWavesDataFolder(Errors,2)
 End
 
 STATIC Function/S roots(polyCoefs)
@@ -266,7 +385,7 @@ STATIC Function/S pinv(matrix)
 	Return  GetWavesDataFolder(M_Inverse,2)
 End
 
-Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutoff,dampcutoff])
+Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[dataReal,ampcutoff,freqcutoff,dampcutoff])
 	//A function that reconstructs the original signal in the time domain and frequency domain
 	//from the LPSVD algorithms coefficients, which are passed as LPSVD_coefs
 	
@@ -274,9 +393,14 @@ Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutof
 	String name				//Name of the generated waves
 	Variable length			//Length of the time domain signal
 	Variable timeStep		//Sampling frequency with which the signal was recorded, in fs
+	Variable dataReal		//Should the output time domain data be real?
 	Variable ampcutoff		//Cutoff for the amplitudes of the components
 	Variable freqcutoff		//Cutoff for the frequency of the components
 	Variable dampcutoff		//Cutoff for the damping of the components
+	
+	If(ParamIsDefault(dataReal))
+		dataReal = 1
+	EndIf
 	
 	If(ParamIsDefault(ampcutoff))
 		ampCutoff = 0
@@ -291,8 +415,8 @@ Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutof
 	EndIf
 	
 	//Initialize time domain signal
-	Make/D/O/N=(length) $name = 0
-	WAVE timeDomain = $name
+	Make/C/D/O/N=(length) $name = 0
+	WAVE/C timeDomain = $name
 	
 	Make/D/O/N=(2^10+1) $(name+"_FFT") = 0
 	WAVE freqDomain = $(name+"_FFT")
@@ -319,12 +443,16 @@ Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[ampcutoff,freqcutof
 			damp = LPSVD_coefs[i][%damps]
 			phase = LPSVD_coefs[i][%phase]
 			freq = LPSVD_coefs[i][%freqs]
-			timeDomain += amp*exp(p*damp)*Cos(2*pi*freq*p+phase)
+			timeDomain += amp*exp(p*cmplx(damp,2*pi*freq)+cmplx(0,1)*phase)
 		EndIf
 	EndFor
 	
 	//Scale the frequency domain signal to match up with the FFT of the same signal
 	freqDomain=(freqDomain)/(2*pi*kspeedoflight*timestep)^2
+	
+	If(dataReal)
+		Redimension/R timeDomain
+	EndIf
 	
 	Return 0
 End
