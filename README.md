@@ -48,7 +48,7 @@ This file contains a single procedure, `LoadPEData()`. This procedure will ask t
 
 ##SignalProcessing.ipf
 This Igor Procedure File (.ipf) contains procedures useful for analyzing ISRS data. In fact, these procedures should be useful for analyzing any data which can be reasonably described as a sum of damped sinusoids. The two main procedures are:
-- `LPSVD(signal,[M,LFactor,RemoveBias])` which fits the data, in a *linear* least squares sense using the **Linear Prediction with Singular Value Decomposition** (LPSVD) algorithm.
+- `LPSVD(signal,[M,LFactor,RemoveBias])` which fits the data, in a *linear* least squares sense using the **Linear Prediction with Singular Value Decomposition** (LPSVD) algorithm. Estimates of the variances for the parameters returned by LPSVD are calculated as the [Cramer-Rao bound](http://en.wikipedia.org/wiki/Cram%C3%A9r%E2%80%93Rao_bound) and returned in a wave named `sigma_LPSVD_coefs`.
 - `Cadzow(signal, M, iters,[lFactor,q])` which filters the data using Cadzow's Composite Property Mapping Algorithm.
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/david-hoffman/Igor-Data-Analysis/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
