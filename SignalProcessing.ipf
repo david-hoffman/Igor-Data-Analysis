@@ -213,17 +213,20 @@ Function/S CalculateLPSVDError(LPSVD_coefs,Data)
 	Duplicate/O LPSVD_coefs $("sigma_"+NameOfWave(LPSVD_coefs))
 	Wave Errors = $("sigma_"+NameOfWave(LPSVD_coefs))
 	Variable i,j	//For loop iterators
-	If(0)//Change this to test if assumptions hold...
-		For(i=0;i<DimSize(Errors,0);i+=1)
-			//Right now I'm using the results of an analytical theory
-			//dx.doi.org/10.1109/78.80943
-			Errors[i][0] = Sqrt(RMS^2*2*(-LPSVD_coefs[i][2]))
-			Errors[i][1] = Sqrt(RMS^2*4*(-LPSVD_coefs[i][2])^3/(-LPSVD_coefs[i][0])^2)
-			Errors[i][2] = Sqrt(RMS^2*4*(-LPSVD_coefs[i][2])^3/(-LPSVD_coefs[i][0])^2)
-			Errors[i][3] = Sqrt(RMS^2*2*(-LPSVD_coefs[i][2])/(-LPSVD_coefs[i][0])^2)
-		EndFor
-		Return  GetWavesDataFolder(Errors,2)//exit
-	EndIf
+	
+//	//The code block below calculates the asymptotic Cramer-Rao bounds according to dx.doi.org/10.1109/78.80943
+//	//The speed up is not significant enough to actually use this code.
+//	If(0)//Change this to test if assumptions hold...
+//		For(i=0;i<DimSize(Errors,0);i+=1)
+//			//Right now I'm using the results of an analytical theory
+//			//dx.doi.org/10.1109/78.80943
+//			Errors[i][0] = Sqrt(RMS^2*2*(-LPSVD_coefs[i][2]))
+//			Errors[i][1] = Sqrt(RMS^2*4*(-LPSVD_coefs[i][2])^3/(-LPSVD_coefs[i][0])^2)
+//			Errors[i][2] = Sqrt(RMS^2*4*(-LPSVD_coefs[i][2])^3/(-LPSVD_coefs[i][0])^2)
+//			Errors[i][3] = Sqrt(RMS^2*2*(-LPSVD_coefs[i][2])/(-LPSVD_coefs[i][0])^2)
+//		EndFor
+//		Return  GetWavesDataFolder(Errors,2)//exit
+//	EndIf
 	
 	//Next we need to generate the Fisher matrix
 	Variable size = DimSize(LPSVD_coefs,0)*4
