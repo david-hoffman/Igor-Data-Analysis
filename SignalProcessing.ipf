@@ -213,7 +213,7 @@ Function/S CalculateLPSVDError(LPSVD_coefs,Data)
 	Duplicate/O LPSVD_coefs $("sigma_"+NameOfWave(LPSVD_coefs))
 	Wave Errors = $("sigma_"+NameOfWave(LPSVD_coefs))
 	Variable i,j	//For loop iterators
-	If(1)//Change this to test if assumptions hold...
+	If(0)//Change this to test if assumptions hold...
 		For(i=0;i<DimSize(Errors,0);i+=1)
 			//Right now I'm using the results of an analytical theory
 			//dx.doi.org/10.1109/78.80943
@@ -234,6 +234,7 @@ Function/S CalculateLPSVDError(LPSVD_coefs,Data)
 	Variable ampj,dampj,freqj,phasej
 	Variable mySum
 	//We'll reuse res for the intermediate calculations
+	//This implementation is based on the work of Barkhuijsen et al (http://dx.doi.org/10.1016/0022-2364(86)90446-4)
 	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
 		ampi = LPSVD_coefs[i][%amps]
 		freqi = LPSVD_coefs[i][%freqs]
@@ -245,19 +246,19 @@ Function/S CalculateLPSVDError(LPSVD_coefs,Data)
 			dampj = LPSVD_coefs[j][%damps]
 			phasej = LPSVD_coefs[j][%phase]
 			
-			res = exp(p*cmplx(dampi-dampj,2*pi*(freqi-freqj))+cmplx(0,1)*(phasei-phasej))
+			res = exp(p*cmplx(dampi+dampj,2*pi*(freqi-freqj))+cmplx(0,1)*(phasei-phasej))
 			WaveStats/Q/C=3 res
 			WAVE M_WaveStats
 			Chi0 =  M_WaveStats[23][0]
 			Zeta0 =  M_WaveStats[23][1]
 			
-			res = p*exp(p*cmplx(dampi-dampj,2*pi*(freqi-freqj))+cmplx(0,1)*(phasei-phasej))
+			res = p*exp(p*cmplx(dampi+dampj,2*pi*(freqi-freqj))+cmplx(0,1)*(phasei-phasej))
 			WaveStats/Q/C=3 res
 			WAVE M_WaveStats
 			Chi1 =  M_WaveStats[23][0]
 			Zeta1 =  M_WaveStats[23][1]
 			
-			res = p^2*exp(p*cmplx(dampi-dampj,2*pi*(freqi-freqj))+cmplx(0,1)*(phasei-phasej))
+			res = p^2*exp(p*cmplx(dampi+dampj,2*pi*(freqi-freqj))+cmplx(0,1)*(phasei-phasej))
 			WaveStats/Q/C=3 res
 			WAVE M_WaveStats
 			Chi2 =  M_WaveStats[23][0]
@@ -286,15 +287,15 @@ Function/S CalculateLPSVDError(LPSVD_coefs,Data)
 
 		EndFor
 	EndFor
-	
 	MatrixInverse/O FisherMat		//Replace the Fisher matrix with its inverse
 	FisherMat*=(2*RMS^2)
 	//Fill up the Error wave with the errors.
 	
 	For(i=0;i<DimSize(Errors,0);i+=1)
-		For(j=0;j<4;j+=1)
-			Errors[i][j] = Sqrt((FisherMat[j+i*4][j+i*4]))
-		EndFor
+		Errors[i][0] = Sqrt((FisherMat[1+i*4][1+i*4]))
+		Errors[i][1] = Sqrt((FisherMat[0+i*4][0+i*4]))
+		Errors[i][2] = Sqrt((FisherMat[2+i*4][2+i*4]))
+		Errors[i][3] = Sqrt((FisherMat[3+i*4][3+i*4]))
 	EndFor
 	
 	Return  GetWavesDataFolder(Errors,2)
@@ -781,19 +782,29 @@ Function decayingSinusoids(w,t)
 	Return val
 End
 
-Function PrintLPSVDCoefs(LPSVD_coefs,timestep,offset)
+Function PrintLPSVDCoefs(LPSVD_coefs,sigma_LPSVD_coefs,timestep,offset)
 	WAVE LPSVD_coefs
+	WAVE sigma_LPSVD_coefs
 	Variable Timestep
 	Variable offset
 	
 	Variable i=0,corrPhase
-	Printf "  Amp \t\t Width \t\t Damp \t\t Freq \t\t Phase\t\t Phase\r"
+	Printf "  Amp\t\t+/-\t\tWidth\t\t+/-\t\tDamp\t\t+/-\t\tFreq\t\t+/-\t\tPhase\t\t+/-\t\tCorrPhase\r"
 	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
 		Printf "%6.3f\t", LPSVD_coefs[i][%amps]
+		Printf "%6.3f\t\t", sigma_LPSVD_coefs[i][%amps]
+		
 		Printf "%6.2f\t\t", -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
+		Printf "%6.2f\t\t", sigma_LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
+		
 		Printf "%6.2f\t\t", -1/(LPSVD_coefs[i][%damps]/timestep)/1000
+		Printf "%6.2f\t\t", sqrt((1/(LPSVD_coefs[i][%damps]/timestep)/1000)^2*sigma_LPSVD_coefs[i]^2)
+		
 		Printf "%6d\t\t", LPSVD_coefs[i][%freqs]/kSpeedOfLight/timestep
+		Printf "%6d\t\t", sigma_LPSVD_coefs[i][%freqs]/kSpeedOfLight/timestep
+		
 		Printf "%6d\t\t", LPSVD_coefs[i][%phase]/pi*180
+		Printf "%6d\t\t", sigma_LPSVD_coefs[i][%phase]/pi*180
 		corrPhase=LPSVD_coefs[i][%phase]-2*pi*LPSVD_coefs[i][%freqs]*offset/timestep
 		Printf "%6d\r", (corrPhase-2*pi*floor(corrPhase/2/pi))/pi*180
 	EndFor
