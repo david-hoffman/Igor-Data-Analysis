@@ -145,17 +145,22 @@ Function StackPlot(base,offset,[shift,pnt,invert])
 	ColorWaves()
 End
 
-Function WaveOffset(offset,[base,pnt])
+Function WaveOffset(offset,[base,pnt,rev])
 //Sequentially offsets the waves matching base by an amount offset in the top graph
 //***NOTE: this will offset the waves in the order they are in on the graph***
 	Variable offset	//The amount to offset the traces
-	Variable pnt	//If used it sets the pixel pnt in each wave to 0 first before offsetting
 	String Base		//Used if you only want a subset of the traces to be offset
+	Variable pnt	//If used it sets the pixel pnt in each wave to 0 first before offsetting
+	Variable rev	//Reverse order?
 	
 	String tl=TraceNameList("", ";",1)	//Pull all of the traces off the top graph
 	
 	If(!ParamIsDefault(base))
 		tl = ListMatch(tl,base)			//remove the desired subset
+	EndIf
+	
+	If(!ParamIsDefault(rev))
+		tl=ReverseList(tl)
 	EndIf
 	
 	String tn
