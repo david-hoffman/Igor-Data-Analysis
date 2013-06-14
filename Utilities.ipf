@@ -16,10 +16,11 @@ End
 Function init()
 	//A quick initialization macro
 	//Makes pixel and shift waves, and fills the shift waves with the peaks For cyclohexane
-	Make/D/O/N=10 shift=NaN
+	Make/D/O/N=0 shift
 	
 	//A list of the solvents available
-	String solvents = "Cyclohexane;DMSO;Dioxane;Ethanol;Benzene"
+	String solvents = "Cyclohexane;DMSO;Dioxane;Ethanol;Benzene;Acetonitrile;"
+	solvents+="Acetone;IPA;Chloroform;Carbon Tetrachloride"
 	
 	Variable solvent = 0 //The user will set this after interacting with the prompt
 	
@@ -48,10 +49,24 @@ Function init()
 		case 5:
 			shift[0]= {605.6,991.6,1178,1584.6,1606.4}//Benzene
 			break
+		case 6:
+			shift[0] = {380,748.6,919.1,1374.5}//Acetonitrile
+			break
+		case 7:
+			shift[0] = {391.2,530.2,786.7,1065.7,1221.8,1429.5,1709.7}//Acetone
+			break
+		case 8:
+			shift[0] = {372,429.2,488.9,819.2,952.8,1130.5,1163.9,1340.7,1451.7}//IPA
+			break
+		case 9:
+			shift[0] = {261.4,366,667.3,759.6,1216}//Chloroform
+			break
+		case 10:
+			shift[0] = {218.4,314.2,459}//CCl4
+			break
 	endswitch
 	
-	//Resize the wave and form the pixel wave
-	WaveTransform/O zapNaNs  shift
+	//Form the pixel wave
 	Duplicate/O shift pixel
 	pixel=NaN
 	
@@ -796,13 +811,18 @@ Function/S SinglePeakArea(spectrum,sp,ep,type)
 	Return toReturn //The first position is the area, and the second is the error on the area
 End
 
-Function/S GroundSubtract1to1(timepoints,ground)
+Function/S GroundSubtract1to1(timepoints,ground,[scale])
 //subtracts the ground spectrum from all of the timepoints (1-to-1 subtraction)
 //times points and ground should be averaged before using this function
 //*****NOTE: NO NORMALIZATION IS DONE HERE****
 
 	WAVE timepoints	//Time delays
 	WAVE ground		//Ground state spectrum
+	Variable scale		//Optional scale factor
+	
+	If(ParamIsDefault(scale))
+		scale = 1
+	EndIf
 	
 	Variable i, length = numpnts(timepoints)
 	String currenttime, wl = ""
@@ -821,7 +841,7 @@ Function/S GroundSubtract1to1(timepoints,ground)
 		//Make the ground subtracted wave
 		Duplicate/o $(currenttime+"_avg") $(currenttime+"_subG")
 		WAVE sub = $(currenttime+"_subG")
-		sub -= ground	//Do the subtraction
+		sub -= ground*scale	//Do the subtraction
 		wl += GetWavesDataFolder(sub,2) + ";" //Append the full path the the output
 	EndFor
 	
