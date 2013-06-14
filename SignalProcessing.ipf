@@ -728,8 +728,13 @@ Function OptimizeLPSVDCoefs(Data,LPSVD_coefs,[ampcutoff,freqcutoff,dampcutoff,ho
 	For(i=0;i<numCoefs;i+=1)
 		myCoefs[4*i] = 2*LPSVD_coefs[i][%amps]
 		myCoefs[4*i+1] = LPSVD_coefs[i][%damps]
-		myCoefs[4*i+2] = LPSVD_coefs[i][%freqs]
-		myCoefs[4*i+3] = LPSVD_coefs[i][%phase]
+		If(abs(LPSVD_coefs[i][%freqs])<1e-14)
+			myCoefs[4*i+2] = 0
+			myCoefs[4*i+3] = 0
+		Else
+			myCoefs[4*i+2] = LPSVD_coefs[i][%freqs]
+			myCoefs[4*i+3] = LPSVD_coefs[i][%phase]
+		EndIf
 		If(holdfreqphase)
 			HoldStr+="0011"
 		Else
