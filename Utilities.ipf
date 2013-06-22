@@ -533,7 +533,7 @@ Function/S FindPeakLocations(spectrum, [minamp, name,plot])
 	EndIf
 	
 	Variable V_Flag,V_PeakWidth,V_PeakLoc	//Make sure we have our variables ready to use
-	Make/D/O/N=100 PeakLocations=NaN		//A wave in which to store the peak locations (pixel)
+	Make/D/O/N=1000 PeakLocations=NaN		//A wave in which to store the peak locations (pixel)
 	
 	Variable i=0	//Iterator
 	do

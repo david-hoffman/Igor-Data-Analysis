@@ -749,7 +749,7 @@ Function OptimizeLPSVDCoefs(Data,LPSVD_coefs,[ampcutoff,freqcutoff,dampcutoff,ho
 	Variable V_FitNumIters
 	Variable V_FitMaxIters=200
 	//do the optimization (we're using funcfit, so we're minimizing the chi^2)
-	FuncFit/H=holdstr/N/W=2/Q decayingSinusoids, myCoefs, newData
+	FuncFit/H=holdstr/ODR=2/N/W=2/Q decayingSinusoids, myCoefs, newData
 	
 	Print "Number of interations: "+num2str(V_FitNumIters)
 	//Well use the newData wave to hold the fit, why not?
