@@ -43,6 +43,17 @@ A set of useful fitting functions for the ultrafast spectroscopist. Many differe
 
 _**NOTE:** the width of the gaussian IRF is defined to be the FWHM/(2*sqrt(ln(2))) which is consistent with Igor's built-in Gaussian function within the CurveFit dialog meaning that this parameter can be used directly._
 
+##FitTimeSeries.ipf
+Contains `FitTimeSeries` a versatile batch fitting function. Fits a sum of either Gaussians or Lorentzians to a subset of time resolved FSRS spectra. `Coefs` is a wave of coefficiencts for the peaks, i.e. `Coefs={0,Amp1,Center1,FWHM1,...,Ampn,Centern,FWHMn}`. The `0` is necessary for backwards compatibility. `Wavenumber` is a *text* wave containing the peak labels, this will determine the names of the output waves. I usually just use the approximate center frequency. **Make sure that your `Coefs` wave has the correct number of coefficients relative to your `Wavenumber` wave**.
+
+Options include:
+
+- `PolyNum` the order of the polynomial baseline. To remove the baseline input `PolyNum=0`. The default is cubic.
+
+- `Plot=1` will plot the results in a pleasing manner.
+
+- `PeakType=1` is Gaussian (default behaviour). `PeakType=0` is Lorentzian.
+
 ##PerkinElmerImport.ipf
 This file contains a single procedure, `LoadPEData()`. This procedure will ask the user which files to load and then will load Perkin Elmer's proprietary binary format into waves named after the file. It will include the experimental info stored in the binary file in the created wave's note. The procedure will also display the loaded waves.
 
