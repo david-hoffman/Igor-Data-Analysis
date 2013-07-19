@@ -544,7 +544,7 @@ Function LoadDetXCData()
 				If(WinType(filename+"0")==0)
 					//The window does NOT already exist, because we're doing this programmically,
 					//the name will automatically have a 0 appended set up the host window
-					Display/W=(0,0,350,400)/N=$filename
+					Display/N=$filename
 					
 					//Just incase it doesn't simply have a 0 appended pull the name
 					TopWinName = S_name
@@ -584,9 +584,10 @@ Function LoadDetXCData()
 					ModifyGraph axisEnab(Center)={0,0.48},axisEnab(width)={0,0.48},freePos(detxc)=0
 					ModifyGraph freePos(Center)=0,freePos(width)=0, lblPos(detxc)=50
 					ModifyGraph standoff(bottom)=0
+					ModifyGraph minor=1
 					
-					ModifyGraph margin(left)=36,margin(bottom)=36,margin(top)=12,margin(right)=36
-					ModifyGraph height=312,width=168,expand=1.5
+					ModifyGraph margin(left)=40,margin(bottom)=36,margin(top)=12,margin(right)=40
+					ModifyGraph height=312,width=160,expand=1.5
 					
 					Label Center "Time Delay (fs)"
 					Label width "FWHM (fs)"
