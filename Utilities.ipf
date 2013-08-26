@@ -811,7 +811,7 @@ Function/S SinglePeakArea(spectrum,sp,ep,type)
 	Return toReturn //The first position is the area, and the second is the error on the area
 End
 
-Function/S GroundSubtract1to1(timepoints,ground,[scale])
+Function/S GroundSubtract1to1(timepoints,ground,[scale,scales])
 //subtracts the ground spectrum from all of the timepoints (1-to-1 subtraction)
 //times points and ground should be averaged before using this function
 //*****NOTE: NO NORMALIZATION IS DONE HERE****
@@ -819,9 +819,15 @@ Function/S GroundSubtract1to1(timepoints,ground,[scale])
 	WAVE timepoints	//Time delays
 	WAVE ground		//Ground state spectrum
 	Variable scale		//Optional scale factor
+	WAVE scales		//In case you want to manual choose the scale factors for each point
 	
 	If(ParamIsDefault(scale))
 		scale = 1
+	EndIf
+	
+	If(ParamIsDefault(scales))
+		Make/FREE/O/D/N=(numpnts(timepoints)) myscales = scale
+		WAVE scales = myScales
 	EndIf
 	
 	Variable i, length = numpnts(timepoints)
@@ -841,7 +847,7 @@ Function/S GroundSubtract1to1(timepoints,ground,[scale])
 		//Make the ground subtracted wave
 		Duplicate/o $(currenttime+"_avg") $(currenttime+"_subG")
 		WAVE sub = $(currenttime+"_subG")
-		sub -= ground*scale	//Do the subtraction
+		sub -= ground*scales[i]	//Do the subtraction
 		wl += GetWavesDataFolder(sub,2) + ";" //Append the full path the the output
 	EndFor
 	
