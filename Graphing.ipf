@@ -10,6 +10,18 @@ Menu "Graph"
 	End
 End
 
+Function FancifyTAMat()
+	ModifyGraph minor=1,prescaleExp(left)=-3;DelayUpdate
+	Label left "Time Delay (ps\\u#2)";DelayUpdate
+	Label bottom "Wavelength (\\U)"
+	ModifyGraph margin(left)=36,margin(bottom)=36,margin(top)=60,margin(right)=12
+	ModifyGraph width=192,height=192,expand=1.5
+	ColorScale/C/N=ColorBar/F=0/B=1/A=MT/X=0.00/Y=-30.00 vert=0,side=2,width=192
+	ColorScale/C/N=ColorBar height=12,minor=1
+	ColorScale/C/N=ColorBar "ÆOD (mOD)"
+	ColorScale/C/N=ColorBar prescaleExp=3
+End
+
 Function FancifyFSRS()
 	//A quick macro to format a plot in a good style
 	//box the figure, add minor ticks to the bottom, and scale the left axis to be mOD
@@ -28,7 +40,7 @@ Function FancifyTA()
 	SetGraphSizeACS()
 End
 
-STATIC Function SetGraphSizeACS()
+Function SetGraphSizeACS()
 	//A simple function to set the graph size to ACS standards
 	//A 3.3 square
 	ModifyGraph mirror=2
@@ -411,7 +423,9 @@ Function ColorWaves([invert])
 	Make/D/O/FREE/N=6 Blue={65535,65535,52428,31457,10485,0}
 	
 	Variable k,km 
-	String tnl = TraceNameList("", ";", 1)
+	String tnl = TraceNameList("", ";", 5)
+	
+	Print tnl
 	
 	k = ItemsInList(tnl)
 	If (k < 2)
@@ -428,7 +442,7 @@ Function ColorWaves([invert])
 	
 	PauseUpdate
 	for(k=0;k<km;k+=1)
-		ModifyGraph rgb[k]=(Round(RedInterp[k]),Round(GreenInterp[k]),Round(BlueInterp[k]))
+		ModifyGraph rgb($StringFromList(k,tnl))=(Round(RedInterp[k]),Round(GreenInterp[k]),Round(BlueInterp[k]))
 	EndFor
 	KillWaves RedInterp, GreenInterp, BlueInterp
 End
