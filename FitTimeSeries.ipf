@@ -96,11 +96,11 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 	EndIf
 	
 	If(ParamIsDefault(PolyNum))
-		PolyNum = 3
+		PolyNum = 4	//Cubic
 	EndIf
 	
 	If(ParamIsDefault(Wiggle))
-		Make/N=(numpnts(wavenumber))/O/D/FREE Vlimit = 40
+		Make/N=(numpnts(wavenumber))/O/D/FREE Vlimit = 20
 	Else
 		Duplicate/O/FREE Wiggle Vlimit
 	EndIf
@@ -179,9 +179,9 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 	PrintF "\r"
 	Print " "
 	Print "Now in copiable form"
-	Print "Make/T/O/N="+num2str(lengthW)+" wavenumber; DelayUpdate"
+	Print "Make/T/O/N="+num2str(lengthW)+" "+nameofwave(wavenumber)+"; DelayUpdate"
 	Print Wavenumber
-	Print "Make/D/O/N="+num2str(numpnts(coefs))+" wavenumber; DelayUpdate"
+	Print "Make/D/O/N="+num2str(numpnts(coefs))+" "+nameofwave(coefs)+"; DelayUpdate"
 	Print coefs
 	Print " "
 	Print "Point A is "+num2str(pnt1)+" ("+num2str(shiftx[pnt1])+" cm-1) and Point B is "+num2str(pnt2)+" ("+num2str(shiftx[pnt2])+" cm-1)."
@@ -209,7 +209,7 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 	
 	Variable V_fitOptions = 4	// suppress progress window
 	Variable V_FitError = 0
-	Variable V_FitMaxIters=200
+	Variable V_FitMaxIters=2000
 	//make the hold string to hold the baseline to zero we will be including one later
 	String H_string="1"
 	//for(i=1;i<lengthC;i+=3)
@@ -234,8 +234,13 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 	k=0
 	for(i=0;i<((lengthC-1)*5/3);i+=5)
 		j=i*3/5 //this counter will take care of indexing the coefficient WAVE.
-		//Amplitude constraint, it must be positive
-		CTextWave[i]="K"+num2str(j+1)+">"+num2str(Alimit)
+		//Amplitude constraint, it must maintain its polarity, i.e. it cannot go
+		//from positive to negative or vice versa.
+		If(coefs[j+1]>0)
+			CTextWave[i]="K"+num2str(j+1)+">"+num2str(Alimit)
+		Else
+			CTextWave[i]="K"+num2str(j+1)+"<"+num2str(Alimit)
+		EndIf
 		
 		//frequency constraint, adjustable by the user, look above
 		CTextWave[i+1]="K"+num2str(j+2)+">"+num2str(coefs[j+2]-Vlimit[k])
@@ -264,10 +269,15 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 		F_String="{fLorFit, tempPeak_Coefs, hold=\"1\",EPSW=epsilonWave}"
 	EndIf
 	
-	If(PolyNum)
-		Print "Including an order", polynum, "polynomial for the baseline"
-		Make/D/O/N=(PolyNum+1) tempBaseln_Coefs=0
-		F_String+="{poly_XOffset "+num2str(PolyNum)+", tempBaseln_Coefs}"
+	If(PolyNum>2)
+		Print "Including an order", polynum-1, "polynomial for the baseline"
+		Make/D/O/N=(PolyNum) tempBaseln_Coefs=0
+		F_String+="{poly_XOffset "+num2str(polynum)+", tempBaseln_Coefs}"
+	ElseIf(PolyNum!=0)
+		Print "Including line for the baseline"
+		Make/D/O/N=2 tempBaseln_Coefs=0
+		F_String+="{line, tempBaseln_Coefs}"
+		Polynum=2
 	Else
 		Print "No baseline!"
 	EndIf
@@ -300,7 +310,7 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 		currenttime = myTime(timepoints[i])+suffix
 		
 		tempBaseln_Coefs = 0
-		
+		//Print F_string
 		FuncFit/M=0/W=2/N/Q {string = F_String} $currenttime[pnt1, pnt2] /X=shiftx /D /C=CTextWave
 		
 		WAVE W_sigma
@@ -363,6 +373,7 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 				badFits += currenttime+"\r"
 				fitfail+=1
 				Printf "X"// X for fail!
+				tempBaseln_Coefs = 0
 			Else
 				Printf " DNE "//DNE=does not exist!
 			EndIf
@@ -389,10 +400,16 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 				//tempBaseLineWave=tempBaseLineWave*(x<pnt1 && x>pnt2)
 				tempBaseLineWave=tempBaseLineWave*(x<pnt1 || x>pnt2)
 				//Now fill in only that region
-				For(j=0;j<(PolyNum+1);j+=1)
-					tempBaseLineWave+=(tempBaseln_Coefs[j]*(shiftx-shiftx[pnt1])^j)*(x>=pnt1 && x<=pnt2)
-					tempBaseLineWave2+=(tempBaseln_Coefs[j]*(x-shiftx[pnt1])^j)
-				EndFor
+				If(PolyNum>2)
+					For(j=0;j<PolyNum;j+=1)
+						tempBaseLineWave+=(tempBaseln_Coefs[j]*(shiftx-shiftx[pnt1])^j)*(x>=pnt1 && x<=pnt2)
+						tempBaseLineWave2+=tempBaseln_Coefs[j]*(x-shiftx[pnt1])^j
+					EndFor
+				Else
+				//Lines are handled slightly differently
+					tempBaseLineWave+=(tempBaseln_Coefs[0]+tempBaseln_Coefs[1]*shiftx)*(x>=pnt1 && x<=pnt2)
+					tempBaseLineWave2=tempBaseln_Coefs[0]+tempBaseln_Coefs[1]*x
+				EndIf
 				//We're doing this so that different regions can be fit separately.
 			
 				WAVE myWave = $currenttime
