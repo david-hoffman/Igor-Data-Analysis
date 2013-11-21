@@ -106,7 +106,7 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 	EndIf
 	
 	If(ParamIsDefault(Width))
-		Make/N=(numpnts(wavenumber))/O/D/FREE MaxWidth = 50
+		Make/N=(numpnts(wavenumber))/O/D/FREE MaxWidth = 170
 	Else
 		Duplicate/O/FREE Width MaxWidth
 	EndIf
@@ -239,7 +239,7 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 		If(coefs[j+1]>0)
 			CTextWave[i]="K"+num2str(j+1)+">"+num2str(Alimit)
 		Else
-			CTextWave[i]="K"+num2str(j+1)+"<"+num2str(Alimit)
+			CTextWave[i]="K"+num2str(j+1)+"<"+num2str(-Alimit)
 		EndIf
 		
 		//frequency constraint, adjustable by the user, look above
@@ -289,7 +289,7 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 		WAVE gndStruct.gnd = gnd
 		WAVE gndStruct.shift = shiftx
 		
-		Make/D/O/N=1 scaleFactor = -0.1
+		Make/D/O/N=1 scaleFactor = -0.5
 		
 		Make/D/O/N=(LengthT) ScaleFactors, sigma_ScaleFactors
 		
@@ -308,8 +308,12 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 	
 	for(i=subrangeStart;i<subrangeEnd;i+=1)
 		currenttime = myTime(timepoints[i])+suffix
+		//**********HERE**************
+		//duplicate/o coefs tempPeak_Coefs
+		//tempBaseln_Coefs = 0
+		//currenttime = "gnd_"+num2str(timepoints[i])+"uW"
+		//**********HERE**************
 		
-		tempBaseln_Coefs = 0
 		//Print F_string
 		FuncFit/M=0/W=2/N/Q {string = F_String} $currenttime[pnt1, pnt2] /X=shiftx /D /C=CTextWave
 		
@@ -367,6 +371,10 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 				EndIf
 			EndIf
 		EndFor
+		//tempBaseln_Coefs[0]=temppeak_Coefs[0]
+		//tempBaseln_Coefs[1]=0
+		//scaleFactor=-0.1
+		
 		If(V_FitError!=0)
 			//Trying to fit a WAVE that doesn't exist shouldn't count against you.
 			If(WaveExists($currenttime))
@@ -379,6 +387,7 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 			EndIf
 			//print coef
 			duplicate/o coefs tempPeak_Coefs
+			tempBaseln_Coefs = 0
 		Else
 			//Print "Fitting successful!"
 			fitsuccess+=1
@@ -420,6 +429,11 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 		DoUpdate
 		
 		V_FitError=0
+		
+		if (GetKeyState(0) & 32)	// Is Escape key pressed now?
+			Printf "User abort: "
+			Break
+		EndIf
 	EndFor
 	
 	PrintF "/-\r"
@@ -535,11 +549,13 @@ Function PlotFitSub(type,freq,plotAppend)
 	Else
 		AppendToGraph $toPlot vs timepoints
 	EndIf
-	ErrorBars $toPlot Y,WAVE=($error,$error)
-	ModifyGraph mode($toPlot)=3,marker($toPlot)=8
+	//ErrorBars $toPlot Y,WAVE=($error,$error)
+	//ModifyGraph mode($toPlot)=3,marker($toPlot)=8
 	ModifyGraph mirror=2
 	ModifyGraph prescaleExp(bottom)=-3
 	Label bottom "Delay (ps)"
+	SetGraphSizeACS()
+	ModifyGraph minor=1
 	strswitch(type)
 		case "amp":
 			Label left "Amplitude (a.u.)"
@@ -552,6 +568,7 @@ Function PlotFitSub(type,freq,plotAppend)
 			break
 		case "freq":
 			Label left "Frequency (cm\S-1\M)"
+			ModifyGraph tkLblRot(left)=90
 			break
 	endswitch
 End
