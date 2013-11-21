@@ -814,6 +814,97 @@ Function PrintLPSVDCoefs(LPSVD_coefs,sigma_LPSVD_coefs,timestep,offset)
 		Printf "%6d\t\t", LPSVD_coefs[i][%phase]/pi*180
 		Printf "%6d\t\t", sigma_LPSVD_coefs[i][%phase]/pi*180
 		corrPhase=LPSVD_coefs[i][%phase]-2*pi*LPSVD_coefs[i][%freqs]*offset/timestep
-		Printf "%6d\r", (corrPhase-2*pi*floor(corrPhase/2/pi))/pi*180
+		Printf "%6d\r", (corrPhase-(2*pi*trunc(corrPhase/2/pi)-pi))/pi*180
 	EndFor
+End
+
+Function RunLPSVD(data,cutoff,name,[comps,plot,cutoff2])
+//A wrapper function that takes care of the reconstruction and naming for running the LPSVD
+//algorithm. Also provides a nice way to display the data.
+
+	WAVE data		//the data to be analyzed
+	Variable cutoff	//where the data should be truncated
+	String name		//How you'd like the created waves to be named
+	Variable comps	//How many components to keep in the LPSVD analysis
+	Variable plot	//do you want the results plotted?
+	Variable cutoff2	//The cutoff for the other end
+	
+	String myCommand = "RunLPSVD(" //A string for saving the command in the wavenote
+	myCommand+=NameOfWave(data)+","+num2str(cutoff)+",\""+name+"\""
+	
+	If(ParamIsDefault(plot))
+		plot=0 // The default is NOT to plot
+	Else
+		myCommand+=",plot=1"
+	EndIf
+	
+	//Extract some useful information from the data
+	Variable timestep =  deltax(data)
+	
+	//Make the truncated data
+	If(ParamIsDefault(cutoff2))
+		Duplicate/O/R=(cutoff,*) data datat
+	Else
+		myCommand+=",cutoff2="+num2str(cutoff2)
+		Duplicate/O/R=(cutoff,cutoff2) data datat
+	EndIf
+	//Generate the mag squared fft of the truncated data
+	FFT/PAD=(nextPow2(numpnts(datat)))/MAGS/DEST=$(name+"_FFT") datat
+	SetScale/P x,0,1/(kSpeedOflight*timestep*nextPow2(numpnts(datat))),"",$(name+"_FFT")
+	
+	//Perform the LPSVD analysis
+	variable LPSVDerror
+	If(ParamIsDefault(comps))
+		LPSVDerror = LPSVD(datat)
+	Else
+		LPSVDerror = LPSVD(datat,M=comps)
+		myCommand+=",comps="+num2str(comps)
+	EndIf
+	
+	//Error checking
+	If(LPSVDerror)
+		Print "There has been an error in the LPSVD algorithm"
+		Return LPSVDerror
+	EndIf
+	
+	WAVE LPSVD_coefs = LPSVD_coefs
+	WAVE sigma_LPSVD_coefs = sigma_LPSVD_coefs
+	
+	//Reconstruct the signal
+	reconstructSignal(LPSVD_coefs,"recon_"+name,numpnts(datat),timestep,dampcutoff=3)
+	
+	//Save the LPSVD coefs
+	Duplicate/O LPSVD_coefs $(name+"_LPSVD_coefs")
+	Duplicate/O sigma_LPSVD_coefs $("sigma_"+name+"_LPSVD_coefs")
+	//KillWaves/Z LPSVD_coefs, sigma_LPSVD_coefs
+	
+	//Save some things in the reconstructed wave
+	myCommand+=")"
+	Note $(name+"_LPSVD_coefs"),"This wave was generated with the following command:"
+	Note $(name+"_LPSVD_coefs"),myCommand
+	
+	//Change the scaling of the newly created waves
+	SetScale/P x,cutoff,timestep,"fs",$("recon_"+name)
+	
+	If(plot)
+		Display/L=Res/B=timedelay data $("recon_"+name) as "LPSVD of "+name
+		AppendToGraph/L=LPSVD/B=freq $(name+"_FFT") $("recon_"+name+"_FFT")
+		ModifyGraph margin(left)=36,margin(bottom)=36,margin(top)=10,margin(right)=10
+		ModifyGraph width=194,height={Aspect,2}, expand=1.5
+		ModifyGraph tick(LPSVD)=3,mirror=2,minor=1,noLabel(LPSVD)=1,lblPos(Res)=40
+		ModifyGraph lblPos(timedelay)=35,lblPos(LPSVD)=40,lblPos(freq)=40
+		ModifyGraph axisEnab(Res)={0.55,1},axisEnab(LPSVD)={0,0.45},freePos(Res)=0
+		ModifyGraph freePos(timedelay)={0.55,kwFraction},freePos(LPSVD)=0,freePos(freq)=0
+		ModifyGraph rgb=(0,0,0),lstyle[0]=1,lstyle[2]=1
+		Label Res "Intensity"
+		Label timedelay "Time Delay (ps\\u#2)"
+		Label LPSVD "Spectal Density"
+		Label freq "Raman Shift (cm\\S-1\\M)"
+		SetDrawLayer UserFront
+		DrawLine 0,0.55,1,0.55
+		TextBox/C/N=text0/F=0/B=1/A=LT/X=5.00/Y=2.00 name
+	EndIf
+	
+	//Successful execution
+	Return 0
 End
