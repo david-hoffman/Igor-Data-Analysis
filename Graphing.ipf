@@ -25,7 +25,7 @@ End
 Function FancifyFSRS()
 	//A quick macro to format a plot in a good style
 	//box the figure, add minor ticks to the bottom, and scale the left axis to be mOD
-	ModifyGraph minor(bottom)=1,prescaleExp(left)=3
+	ModifyGraph minor=1,prescaleExp(left)=3
 	//Label the axes
 	Label left "Raman Gain (mOD)"
 	Label bottom "Raman Shift (cm\\S-1\\M)"
@@ -52,6 +52,7 @@ Function SetGraphSizeACS()
 	ModifyGraph width=192,height=192
 	//3.3 in is a little small for most screens so we'll expand the figure by 50%
 	ModifyGraph expand=1.5
+	ModifyGraph minor=1
 End
 
 Function graphKineticData(freq)
@@ -425,7 +426,7 @@ Function ColorWaves([invert])
 	Variable k,km 
 	String tnl = TraceNameList("", ";", 5)
 	
-	Print tnl
+	//Print tnl
 	
 	k = ItemsInList(tnl)
 	If (k < 2)
