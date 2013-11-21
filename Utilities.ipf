@@ -36,6 +36,7 @@ Function init()
 	Switch(solvent)
 		case 1:
 			shift[0]= {383.81,426.62,801.39,1028.13,1157.64,1265.91,1347.57,1443.73} //CHEX
+			shift[8]= {2633.99,2665.34,2853.59,2924.24,2938.84}
 			break
 		case 2:
 			shift[0]= {309,333,382,667,698,953,1026,1042,1307,1417} //DMSO
@@ -1201,6 +1202,7 @@ Function CalcTA(timepoints, mainBase, [q])
 	
 	//First thing to do is to calculate the ground Raman pump on spectrum
 	String pathToGndOn = averagewaves(mainBase+"*gr*pumpon","gnd_pumpon_avg",q=q)
+	//String pathToGndOn = averagewaves(mainBase+"gnd_*pumpon*","gnd_pumpon_avg",q=q)
 	//Error checking
 	If (strlen(pathToGndOn) ==0)
 		DoAlert/T="TransA Failed!" 0, "You saw the previous alert, you probably mucked something up!"
@@ -1213,6 +1215,7 @@ Function CalcTA(timepoints, mainBase, [q])
 	
 	//Same thing for Raman pump off
 	String pathToGndOff = averagewaves(mainBase+"*gr*pumpoff","gnd_pumpoff_avg",q=q)
+	//String pathToGndOff = averagewaves(mainBase+"gnd_*pumpoff*","gnd_pumpoff_avg",q=q)
 	If (strlen(pathToGndOff) ==0)
 		DoAlert/T="TransA Failed!" 0, "You saw the previous alert, you probably mucked something up!"
 		Return -2
@@ -1222,6 +1225,7 @@ Function CalcTA(timepoints, mainBase, [q])
 	
 	//Average the excited state Raman pump on data
 	String pumpOnWL = avgtimewaves(timepoints, mainBase,base1="exc*_pumpon",base2="_pumpon_avg",q=q)
+	//String pumpOnWL = avgtimewaves(timepoints, mainBase+"ex_",base1="*pumpon*",base2="_pumpon_avg",q=q)
 	//Error checking
 	If (strlen(pumpOnWL) ==0)
 		Return -3
@@ -1229,6 +1233,7 @@ Function CalcTA(timepoints, mainBase, [q])
 	
 	//Average the excited state Raman pump off data
 	String pumpOffWL = avgtimewaves(timepoints, mainBase,base1="exc*_pumpoff",base2="_pumpoff_avg",q=q)
+	//String pumpOffWL = avgtimewaves(timepoints, mainBase+"ex_",base1="*pumpoff*",base2="_pumpoff_avg",q=q)
 	If (strlen(pumpOffWL) ==0)
 		Return -4
 	EndIf
@@ -1403,7 +1408,7 @@ Function/S makeRaman(pos, intens, name, [type, width])
 	
 	If(ParamIsDefault(width))
 		//Width is FWHM For either line shape
-		width = 7
+		width = 15
 	EndIf
 	
 	Variable i, length = numpnts(pos)
