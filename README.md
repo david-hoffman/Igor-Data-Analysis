@@ -54,6 +54,9 @@ Options include:
 
 - `PeakType=1` is Gaussian (default behaviour). `PeakType=0` is Lorentzian.
 
+##FitTimeSeriesDisp.ipf
+Contains `FitTimeSeries2` which is almost identical to `FitTimeSeries` except that it uses a dispersive lorentzian lineshape function which has one parameter for the amplitude of the real part and one for the amplitude of the dispersive part. If the initial values for either of these components is 0 than the function assumes that those peaks are totally real or dispersive and holds that component to 0.
+
 ##PerkinElmerImport.ipf
 This file contains a single procedure, `LoadPEData()`. This procedure will ask the user which files to load and then will load Perkin Elmer's proprietary binary format into waves named after the file. It will include the experimental info stored in the binary file in the created wave's note. The procedure will also display the loaded waves.
 
