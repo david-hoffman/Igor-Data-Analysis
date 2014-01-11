@@ -370,6 +370,7 @@ Function conv_Stretchedexp(pw, yw, xw) : FitFunc
 	//| pw[3] = H offset for any photoproduct formation
 	//| pw[4] = a1
 	//| pw[5] = t1
+	//| pw[6] = alpha1
 	//| ... and so on
 	
 	//We will use a tenth of the pw[0] as our resolution
