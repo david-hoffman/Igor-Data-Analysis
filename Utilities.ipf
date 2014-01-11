@@ -124,7 +124,7 @@ Function Calibrate(pixel,shift,laser,ranwave)
  	
  	//Add annotations to the graph
  	TextBox/C/N=text0/A=LT/X=0/Y=0  "Wavelength Calibration\rwavelength = a*pixel+b\ra = "+num2str(W_coef[1])+"±"+num2str(W_sigma[1])+"\rb = "+num2str(W_coef[0])+"±"+num2str(W_sigma[0])
-	TextBox/C/N=text1/A=RB/X=0/Y=0 "Std Dev = " +num2str(V_sdev)+" cm\\S-1\\M\rR\S2\M = "+num2str(V_r2)
+	TextBox/C/N=text1/A=RB/X=0/Y=0 "Std Dev = " +num2str(V_sdev)+" cm\\S-1\\M\r95% CI = "+num2str(StudentT(0.95,V_npnts-1)*V_sem)+" cm\\S-1\\M\rR\S2\M = "+num2str(V_r2)
 	
 	//Create the shiftx and nmshiftx waves
 	Make/D/O/N=(length) shiftx=1e7*((1/laser)-(1/(W_coef[1]*x+W_coef[0])))
@@ -432,6 +432,36 @@ Function XCMaxN(Matrix)
 	EndFor
 End
 
+Function ExtractTimes(base)
+	String base
+	String 	wl=WaveList(base,";","")
+	
+	Variable length = ItemsInList(wl);
+	If(length == 0)
+		Return -1//Function failed, no waves in top window!
+	EndIf
+	
+	Variable i = 0
+	
+	String name = ""
+	String timepoint, pORm, num
+	
+	Make/O/D/N=(length) root:timepoints
+	
+	Wave times= root:timepoints
+	
+	For(i=0;i<length;i+=1)
+		name = StringFromList(i,wl)
+		SplitString/E=("(p|m)([[:digit:]]+)") name, pORm, num//Extract number info
+		times[i]=str2num(num)
+		If(!CmpStr(pORm,"m"))
+			times[i]*=-1
+		EndIf
+	EndFor
+	Sort times,times
+	Return 0 //Function ran successfully
+End
+
 Function/S AverageWaves(baseName,avgName,[q])
 //this function averages multiple waves with the same base name
 //Igor has a built in package that is much more general but also more
@@ -712,12 +742,14 @@ Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name,type)
 	String name		//Name of the subtracted wave
 	Variable type		//1 for gaussian 0 for lorentzian
 	
-	WAVE Spectrum1_SDW = $(NameOfWave(Spectrum1)+"_SDW")
-	WAVE Spectrum2_SDW = $(NameOfWave(Spectrum2)+"_SDW")
+	WAVE/Z Spectrum1_SDW = $(NameOfWave(Spectrum1)+"_SDW")
+	WAVE/Z Spectrum2_SDW = $(NameOfWave(Spectrum2)+"_SDW")
+	
+	Variable ErrorsExist = 1
 	
 	If(!WaveExists(Spectrum1_SDW) || !WaveExists(Spectrum2_SDW))
-		Print "There are no standard deviation waves, please run average waves again"
-		Return ""
+		Print "There are no standard deviation waves, errors will not be propogated"
+		ErrorsExist = 0
 	EndIf
 	
 	String myResults = SinglePeakArea(spectrum1,startpt,endpt,type)
@@ -744,15 +776,17 @@ Function/S SpectraSubtract2(spectrum1, spectrum2, startpt,endpt,name,type)
 	Variable SpectraSubtract2Scale_SD = Sqrt((Spec1Amp_SD/Spec2Amp)^2+(Spec1Amp*Spec2Amp_SD/(Spec2Amp^2))^2)
 	
 	//Time to propogate the error on the actual waves
-	Duplicate/O Spectrum1_SDW $(name+"_SDW")
-	WAVE sub_SDW = $(name+"_SDW")
+	If(ErrorsExist)
+		Duplicate/O Spectrum1_SDW $(name+"_SDW")
+		WAVE sub_SDW = $(name+"_SDW")
 		
-	sub_SDW = Sqrt(Spectrum1_SDW^2+(Spectrum2_SDW*Scale)^2+(Spectrum2*SpectraSubtract2Scale_SD)^2)
+		sub_SDW = Sqrt(Spectrum1_SDW^2+(Spectrum2_SDW*Scale)^2+(Spectrum2*SpectraSubtract2Scale_SD)^2)
+	EndIf
 	
 	String toReturn
 	sprintf toReturn, "%.16g;%.16g;",Scale,SpectraSubtract2Scale_SD
 	
-	//return the path to the solvent removed WAVE
+	//parameters as a list string
 	Return toReturn
 End
 
@@ -961,7 +995,9 @@ Function/S GroundSubtract2(timepoints,ground,startpt,endpt,type,[q])
 	Variable excAmp, gndAmp = str2num(StringFromList(0,gndResults))
 	Variable excAmp_SD, gndAmp_SD = str2num(StringFromList(1,gndResults))
 	
-	Make/D/O/N=(numpnts(timepoints)) groundsubtracted, groundsubtracted_SDW
+	Make/D/O/N=(numpnts(timepoints)) root:groundsubtracted, root:groundsubtracted_SDW
+	WAVE groundsubtracted = root:groundsubtracted
+	WAVE groundsubtracted_SDW = root:groundsubtracted_SDW
 	
 	length = numpnts(timepoints)
 	For(i=0;i<length;i+=1)
@@ -1298,6 +1334,7 @@ Function CalcTA(timepoints, mainBase, [q])
 		IntegrateMatrix(TAROnMat,"sumTAROn"+num2str(i),sp=100*i+20,ep=100*(i+1)+20)
 	EndFor
 	
+	//Integrate full window, clipping edges to avoid problems
 	IntegrateMatrix(TAROffMat,"sumTAROff",sp=20,ep=1320)
 	IntegrateMatrix(TAROnMat,"sumTAROn",sp=20,ep=1320)
 	
