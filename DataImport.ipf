@@ -551,8 +551,8 @@ Function LoadDetXCData()
 					
 					DoWindow/T $TopWinName, "Detector Cross Correlation: "+filename
 					//Display/HOST=$TopWinName/N=DetXCImage/W=(0,1,1,0.5)/FG=(FL,FT,FR,*)// The Image
-					WAVE shiftxForImages = shiftxForImages
-					WAVE shiftx = shiftx
+					WAVE/Z shiftxForImages = shiftxForImages
+					WAVE/Z shiftx = shiftx
 					If(WaveExists(shiftxForImages)&&WaveExists(shiftx))
 						AppendImage/L=detxc $filename vs {shiftxForImages,*}//Make an Image, not a contour
 						AppendtoGraph/L=detxc $(filename+"_Max") vs shiftx
