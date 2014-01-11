@@ -11,9 +11,9 @@ Menu "Graph"
 End
 
 Function FancifyTAMat()
-	ModifyGraph minor=1,prescaleExp(left)=-3;DelayUpdate
-	Label left "Time Delay (ps\\u#2)";DelayUpdate
-	Label bottom "Wavelength (\\U)"
+	ModifyGraph minor=1,prescaleExp(bottom)=-3, tkLblRot(left)=90
+	Label bottom "Time Delay (ps\\u#2)"
+	Label left "Wavelength (nm\\u#2)"
 	ModifyGraph margin(left)=36,margin(bottom)=36,margin(top)=60,margin(right)=12
 	ModifyGraph width=192,height=192,expand=1.5
 	ColorScale/C/N=ColorBar/F=0/B=1/A=MT/X=0.00/Y=-30.00 vert=0,side=2,width=192
@@ -184,7 +184,7 @@ Function WaveOffset(offset,[base,pnt,rev])
 		If( strlen(tn) == 0 )
 			break
 		EndIf
-		Wave myTrace = $tn
+		Wave myTrace = TraceNameToWaveRef("", tn)
 		If(ParamIsDefault(pnt))
 			ModifyGraph offset($tn)= {0,offset*i}	// Go through the traces on the top graph and offset them
 		Else
@@ -246,15 +246,15 @@ Function labelTimes([pnt])
 	String timepoint, pORm, num
 	
 	//Before doing anything draw the rectangle
-	WAVE XWave = $XWaveName("",StringFromList(0,wl))
+	WAVE XWave = XWaveRefFromTrace("",StringFromList(0,wl))
 	
-	SetDrawEnv fsize=12
+	SetDrawEnv fsize=8
 	
 	If(ParamIsDefault(pnt)||!WaveExists(XWave))
 		SetDrawEnv xcoord= prel,ycoord= left, textxjust= 1, save
 	Else
 		SetDrawEnv xcoord= bottom,ycoord= prel, textxjust= 1, linefgc= (65535,65535,65535), save
-		DrawRect XWave[pnt-60],0,XWave[pnt+60],1
+		DrawRect XWave[pnt-100],0,XWave[pnt+100],1
 		SetDrawEnv ycoord= left,save
 	EndIf
 	
@@ -280,8 +280,7 @@ Function labelTimes([pnt])
 			If(ParamIsDefault(pnt)||!WaveExists(XWave))
 				DrawText 0.9,myOffset,timepoint
 			Else
-				WAVE XWave = $XWaveName("",name)
-				WAVE myWave =$name
+				WAVE myWave =TraceNametoWaveRef("",name)
 				DrawText  XWave[pnt],myOffset+myWave[pnt],timepoint
 			EndIf
 		EndIf
