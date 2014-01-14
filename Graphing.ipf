@@ -228,7 +228,7 @@ Function colorTimeWaves(timepoints) : Graphstyle
 	KillWaves Red, Green, Blue, RedInterp, GreenInterp, BlueInterp
 End
 
-Function labelTimes([pnt])
+Function labelTimes(pnt)
 //Label time resolved spectra, for instance, those displayed using stackplot
 	Variable pnt	//Where you want the labels to be
 	//Set up the list of relevant waves
@@ -245,19 +245,6 @@ Function labelTimes([pnt])
 	String name = ""
 	String timepoint, pORm, num
 	
-	//Before doing anything draw the rectangle
-	WAVE XWave = XWaveRefFromTrace("",StringFromList(0,wl))
-	
-	SetDrawEnv fsize=8
-	
-	If(ParamIsDefault(pnt)||!WaveExists(XWave))
-		SetDrawEnv xcoord= prel,ycoord= left, textxjust= 1, save
-	Else
-		SetDrawEnv xcoord= bottom,ycoord= prel, textxjust= 1, linefgc= (65535,65535,65535), save
-		DrawRect XWave[pnt-100],0,XWave[pnt+100],1
-		SetDrawEnv ycoord= left,save
-	EndIf
-	
 	For(i=0;i<length;i+=1)
 		name = StringFromList(i,wl)
 		SplitString/E=("(p|m)([[:digit:]]+)") name, pORm, num//Extract number info
@@ -272,17 +259,14 @@ Function labelTimes([pnt])
 			If(CmpStr(pORm,"m")==0 && str2num(num)!=0)
 				timepoint = "-"+timepoint
 			EndIf
-			//Retrieve offset
-			myOffset = GetNumFromModifyStr(traceinfo("",name,0),"offset","{",1)
+			//Retrieve my coloring
+			Variable red = GetNumFromModifyStr(traceinfo("",name,0),"rgb","(",0)
+			Variable blue = GetNumFromModifyStr(traceinfo("",name,0),"rgb","(",1)
+			Variable green = GetNumFromModifyStr(traceinfo("",name,0),"rgb","(",2)
+		
+			String myLabel ="\\K("+num2str(red)+","+num2str(blue)+","+num2str(green)+")"+timepoint
+			Tag/C/N=$name/F=0/A=MB/X=0.00/Y=0.00/L=0 $name, pnt, myLabel
 			
-			SetDrawEnv textrgb= (GetNumFromModifyStr(traceinfo("",name,0),"rgb","(",0),GetNumFromModifyStr(traceinfo("",name,0),"rgb","(",1),GetNumFromModifyStr(traceinfo("",name,0),"rgb","(",2))
-			
-			If(ParamIsDefault(pnt)||!WaveExists(XWave))
-				DrawText 0.9,myOffset,timepoint
-			Else
-				WAVE myWave =TraceNametoWaveRef("",name)
-				DrawText  XWave[pnt],myOffset+myWave[pnt],timepoint
-			EndIf
 		EndIf
 	EndFor
 			
