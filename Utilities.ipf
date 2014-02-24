@@ -1227,8 +1227,8 @@ Function CalcTA(timepoints, mainBase, [q])
 	Variable TimerRefNum = StartMSTimer
 	
 	//Check to see if calibrate has been run, if so we can set the wave scaling in nm
-	NVAR/Z myLeftx = wlLeftx
-	NVAR/Z myDeltax = wlDeltax
+	NVAR/Z myLeftx = root:wlLeftx
+	NVAR/Z myDeltax = root:wlDeltax
 	
 	Variable canScale = NVAR_Exists(myLeftx) && NVAR_Exists(myDeltax)
 	
