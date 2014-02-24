@@ -392,6 +392,7 @@ End
 Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[dataReal,ampcutoff,freqcutoff,dampcutoff])
 	//A function that reconstructs the original signal in the time domain and frequency domain
 	//from the LPSVD algorithms coefficients, which are passed as LPSVD_coefs
+	//http://mathworld.wolfram.com/FourierTransformLorentzianFunction.html
 	
 	WAVE LPSVD_coefs		//coefficients from the LPSVD algorithm
 	String name				//Name of the generated waves
@@ -436,11 +437,11 @@ Function reconstructSignal(LPSVD_coefs,name,length,timeStep,[dataReal,ampcutoff,
 	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
 		damp = -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
 		if((LPSVD_coefs[i][%amps])^2 > ampcutoff && damp > dampcutoff)
-			amp =  LPSVD_coefs[i][%amps]
 			damp = -LPSVD_coefs[i][%damps]/kSpeedOfLight/timestep/pi
 			freq = LPSVD_coefs[i][%freqs]/kSpeedOfLight/timestep
+			amp =  LPSVD_coefs[i][%amps]//Exp(-1/2*70^2*(2*Pi*freq*kSpeedOfLight)^2)
 			If( abs(Freq) > freqcutoff)		
-				freqDomain += amp^2/((x-freq)^2+(damp/2)^2)
+				freqDomain += amp^2/((x-freq)^2+(damp/2)^2)//Exp(-29^2*(2*Pi*freq*kSpeedOfLight)^2)
 			EndIf
 			//Keep in mind that LPSVD_coefs were constructed agnostic to the actual sampling
 			//frequency so we will reconstruct it in the same way
@@ -849,8 +850,12 @@ Function RunLPSVD(data,cutoff,name,[comps,plot,cutoff2])
 		Duplicate/O/R=(cutoff,cutoff2) data datat
 	EndIf
 	//Generate the mag squared fft of the truncated data
-	FFT/PAD=(nextPow2(numpnts(datat)))/MAGS/DEST=$(name+"_FFT") datat
-	SetScale/P x,0,1/(kSpeedOflight*timestep*nextPow2(numpnts(datat))),"",$(name+"_FFT")
+	Variable myLength = nextPow2(numpnts(datat))
+	If(myLength<2^10)
+		myLength = 2^10
+	EndIf
+	FFT/PAD=(myLength)/MAGS/DEST=$(name+"_FFT") datat
+	SetScale/P x,0,1/(kSpeedOflight*timestep*myLength),"",$(name+"_FFT")
 	
 	//Perform the LPSVD analysis
 	variable LPSVDerror
@@ -895,7 +900,7 @@ Function RunLPSVD(data,cutoff,name,[comps,plot,cutoff2])
 		ModifyGraph lblPos(timedelay)=35,lblPos(LPSVD)=40,lblPos(freq)=40
 		ModifyGraph axisEnab(Res)={0.55,1},axisEnab(LPSVD)={0,0.45},freePos(Res)=0
 		ModifyGraph freePos(timedelay)={0.55,kwFraction},freePos(LPSVD)=0,freePos(freq)=0
-		ModifyGraph rgb=(0,0,0),lstyle[0]=1,lstyle[2]=1
+		ModifyGraph rgb=(0,0,0),rgb[0]=(34952,34952,34952),rgb[2]=(34952,34952,34952)
 		Label Res "Intensity"
 		Label timedelay "Time Delay (ps\\u#2)"
 		Label LPSVD "Spectal Density"
@@ -907,4 +912,11 @@ Function RunLPSVD(data,cutoff,name,[comps,plot,cutoff2])
 	
 	//Successful execution
 	Return 0
+End
+
+Function nextPow2(n)
+	//Function returns the next power of 2
+	//Useful for calculating good padding for the FFT function
+	Variable n
+	Return 2^(ceil(log(n)/log(2)))
 End
