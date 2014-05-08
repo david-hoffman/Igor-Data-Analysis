@@ -65,5 +65,6 @@ This Igor Procedure File (.ipf) contains procedures useful for analyzing ISRS da
 - `LPSVD(signal,[M,LFactor,RemoveBias])` which fits the data, in a *linear* least squares sense using the **Linear Prediction with Singular Value Decomposition** (LPSVD) algorithm. Estimates of the variances for the parameters returned by LPSVD are calculated as the [Cramer-Rao bound](http://en.wikipedia.org/wiki/Cram%C3%A9r%E2%80%93Rao_bound) and returned in a wave named `sigma_LPSVD_coefs`.
 - `Cadzow(signal, M, iters,[lFactor,q])` which filters the data using Cadzow's Composite Property Mapping Algorithm.
 
+[![Analytics](https://ga-beacon.appspot.com/UA-40008601-1/Igor-Data-Analysis/readme)](https://github.com/igrigorik/ga-beacon)
+
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/david-hoffman/Igor-Data-Analysis/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-[![githalytics.com alpha](https://cruel-carlota.pagodabox.com/067a677b64204640d9421177434c208e "githalytics.com")](http://githalytics.com/david-hoffman/Igor-Data-Analysis)
