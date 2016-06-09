@@ -34,12 +34,13 @@ Function Fano(w,x)
 	return r
 End
 
-Function fitTimeSeries2(timepoints, pnt1, pnt2,wavenumber,Coefs,[Wiggle,Width,Plot,PolyNum,subrangeStart,subrangeEnd,suffix])
+Function fitTimeSeries2(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd,Wiggle,Width,Plot,PolyNum,subrangeStart,subrangeEnd,suffix])
 //modified David Hoffman
 	WAVE timepoints
 	Variable pnt1, pnt2
 	WAVE/T wavenumber
 	WAVE Coefs
+	WAVE gnd
 	WAVE wiggle
 	WAVE Width
 	String Suffix
@@ -47,12 +48,18 @@ Function fitTimeSeries2(timepoints, pnt1, pnt2,wavenumber,Coefs,[Wiggle,Width,Pl
 	Variable PolyNum
 	Variable subrangeStart,subrangeEnd
 	
+	Variable includeGND = !ParamIsDefault(gnd)		//The user has indicated that the ground state should be included in the fitting procedure
+	
 	if(ParamIsDefault(Plot))
 		Plot=0
 	EndIf
 	
 	if(ParamIsDefault(suffix))
-		Suffix="_subg"
+		If(includeGND)
+			Suffix="_subg"
+		Else
+			Suffix="_withg"
+		EndIf
 	EndIf
 	
 	If(ParamIsDefault(PolyNum))
@@ -60,13 +67,13 @@ Function fitTimeSeries2(timepoints, pnt1, pnt2,wavenumber,Coefs,[Wiggle,Width,Pl
 	EndIf
 	
 	If(ParamIsDefault(Wiggle))
-		Make/N=(numpnts(wavenumber))/O/D/FREE Vlimit = 15
+		Make/N=(numpnts(wavenumber))/O/D/FREE Vlimit = 30
 	Else
 		Duplicate/O/FREE Wiggle Vlimit
 	EndIf
 	
 	If(ParamIsDefault(Width))
-		Make/N=(numpnts(wavenumber))/O/D/FREE MaxWidth = 75
+		Make/N=(numpnts(wavenumber))/O/D/FREE MaxWidth = 100
 	Else
 		Duplicate/O/FREE Width MaxWidth
 	EndIf
@@ -261,22 +268,45 @@ Function fitTimeSeries2(timepoints, pnt1, pnt2,wavenumber,Coefs,[Wiggle,Width,Pl
 		Print "No baseline!"
 	EndIf
 	
+	If(includeGND)
+		//Declare my structure for fitting
+		Struct scaledGroundStruct gndStruct
+		//Apparently the WAVE keyword is necessary to create a wave reference
+		WAVE gndStruct.gnd = gnd
+		WAVE gndStruct.shift = shiftx
+		
+		Make/D/O/N=1 scaleFactor = -0.5
+		
+		Make/D/O/N=(LengthT) ScaleFactors, sigma_ScaleFactors
+		
+		F_String += "{scaleGround, scaleFactor,STRC=gndStruct}"
+	Else
+		Print "No ground included."
+	EndIf
+	
 	Print ""
 	
 	Printf " Start fitting: -/"
 	
 	//String to hold the timepoints which weren't fit properly
-	
+	Variable v_avg
 	String badFits = "Bad Fits:\r"
 	//PauseUpdate
 	for(i=subrangeStart;i<subrangeEnd;i+=1)
 		currenttime = myTime(timepoints[i])+suffix
 		
 		//tempBaseln_Coefs = 0
+		Wavestats/Q/R=[pnt1,pnt2] $currenttime
+		tempBaseln_Coefs[0]=v_avg
 		
-		FuncFit/L=1340/M=0/N/Q/W=2 {string = F_String} $currenttime[pnt1, pnt2] /X=shiftx /D /C=CTextWave
+		FuncFit/L=1340/N/Q/M=0/W=2 {string = F_String} $currenttime[pnt1, pnt2] /X=root:shiftx /D /C=CTextWave
 		
 		WAVE W_sigma
+		
+		If(includeGnd)
+			ScaleFactors[i] = ScaleFactor[0]
+			sigma_scaleFactors[i] = w_sigma[numpnts(w_sigma)-1]
+		EndIf
 		
 		for(k=0;k<lengthW;k+=1)
 			//Keeping track of all our parameters and putting them in reasonably
@@ -360,11 +390,12 @@ Function fitTimeSeries2(timepoints, pnt1, pnt2,wavenumber,Coefs,[Wiggle,Width,Pl
 			EndIf
 		EndIf
 		
-		//DoUpdate
+		DoUpdate
 		
 		V_FitError=0
 		if (GetKeyState(0) & 32)	// Is Escape key pressed now?
 			Printf "User abort: "
+			Plot=0
 			Break
 		EndIf
 	EndFor
@@ -399,7 +430,7 @@ Function tabFit2([freq])
 //Displays the results of peak fitting
 //The user can chose whether they want to plot the amplitude, the frequency, the width or the area
 	Variable freq
-	WAVE timepoints = timepoints
+	WAVE timepoints = root:timepoints
 	If(!WaveExists(timepoints))
 		Print "Timepoints WAVE does not exist"
 		return -1
@@ -469,7 +500,7 @@ Function PlotFitSub2(type,freq,plotAppend)
 	String type
 	Variable freq, plotAppend
 	
-	WAVE timepoints = timepoints
+	WAVE timepoints = root:timepoints
 	If(!WaveExists(timepoints))
 		Print "Timepoints WAVE does not exist"
 		return -1

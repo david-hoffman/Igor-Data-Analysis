@@ -22,6 +22,18 @@ Function FancifyTAMat()
 	ColorScale/C/N=ColorBar prescaleExp=3
 End
 
+Function FancifyTAMat2()
+	ModifyGraph minor=1,prescaleExp(left)=-3
+	Label left "Time Delay (ps\\u#2)"
+	Label bottom "Wavelength (nm\\u#2)"
+	ModifyGraph margin(left)=36,margin(bottom)=36,margin(top)=60,margin(right)=12
+	ModifyGraph width=192,height=192,expand=1.5
+	ColorScale/C/N=ColorBar/F=0/B=1/A=MT/X=0.00/Y=-30.00 vert=0,side=2,width=192
+	ColorScale/C/N=ColorBar height=12,minor=1
+	ColorScale/C/N=ColorBar "ÆOD (mOD)"
+	ColorScale/C/N=ColorBar prescaleExp=3
+End
+
 Function FancifyFSRS()
 	//A quick macro to format a plot in a good style
 	//box the figure, add minor ticks to the bottom, and scale the left axis to be mOD
@@ -108,6 +120,47 @@ Function graphKineticData(freq)
 	DrawLine 0,0.5,1,0.5
 EndMacro
 
+Function DisplayWL(wl,[XWave,addtograph])
+	//A quick macro to display a list of waves
+	String wl //the list to be displayed
+	WAVE XWave //optional abscissa WAVE
+	Variable addtograph //does the user want to add the list of waves to the top graph?
+	
+	//Pull the length
+	Variable length=ItemsInList(wl)
+	
+	If(length==0)
+		//Error checking, in case the user has made a mistake
+		Print "There was nothing to display."
+		Return -1
+	EndIf
+	
+	String TN=""//Trace name
+	
+	If(ParamIsDefault(addtograph))//the user doesn't want to add to the top graph.
+		Display //set up the display window
+	Endif
+	
+	Variable i=0 //my iterator
+	
+	For(i=0;i<length;i+=1)
+		//loop through the list pulling out each WAVE
+		TN = StringFromList(i,wl, ";")
+		If(WaveExists($TN))//Make sure the WAVE exists!
+			//append the waves to the top graph, with or without an xwave as desired
+			If(ParamIsDefault(XWave))
+				AppendToGraph $TN
+			Else
+				AppendToGraph $TN vs XWave
+			EndIf
+		Else
+			Print TN+" does not exist!"
+		EndIf
+	EndFor
+	
+	Return 0 //successful exit
+End
+
 Function StackPlot(base,offset,[shift,pnt,invert])
 //Base is a string with one or more wildcards so that a family of waves may be plotted e.g. "*spec"
 //offset is the amount you want the waves to be offset
@@ -129,23 +182,7 @@ Function StackPlot(base,offset,[shift,pnt,invert])
 	//Set up display window
 	Display/N=StackPlot as "Stack plot "+base
 	
-	i=0
-	
-	Do
-		wn = StringFromList(i,wl)
-		If (strlen(wn) ==0)
-			//No more waves
-			Break
-		EndIf
-		//Increase iterator
-		i+=1
-		//Append the wave
-		If(!ParamIsDefault(shift))
-			AppendToGraph $wn vs shift
-		Else
-			AppendToGraph $wn
-		EndIf
-	While(1)
+	DisplayWL(wl,XWave=shift,addtograph=1)
 	
 	//Do the offsetting
 	If(ParamIsDefault(pnt))
@@ -158,13 +195,14 @@ Function StackPlot(base,offset,[shift,pnt,invert])
 	ColorWaves()
 End
 
-Function WaveOffset(offset,[base,pnt,rev])
+Function WaveOffset(offset,[base,pnt,rev,extraoffset])
 //Sequentially offsets the waves matching base by an amount offset in the top graph
 //***NOTE: this will offset the waves in the order they are in on the graph***
 	Variable offset	//The amount to offset the traces
 	String Base		//Used if you only want a subset of the traces to be offset
 	Variable pnt	//If used it sets the pixel pnt in each wave to 0 first before offsetting
 	Variable rev	//Reverse order?
+	variable extraoffset//more offset, a constant
 	
 	String tl=TraceNameList("", ";",1)	//Pull all of the traces off the top graph
 	
@@ -186,9 +224,9 @@ Function WaveOffset(offset,[base,pnt,rev])
 		EndIf
 		Wave myTrace = TraceNameToWaveRef("", tn)
 		If(ParamIsDefault(pnt))
-			ModifyGraph offset($tn)= {0,offset*i}	// Go through the traces on the top graph and offset them
+			ModifyGraph offset($tn)= {0,offset*i+extraoffset}	// Go through the traces on the top graph and offset them
 		Else
-			ModifyGraph offset($tn)= {0,offset*i-myTrace[pnt]}
+			ModifyGraph offset($tn)= {0,offset*i+extraoffset-myTrace[pnt]}
 		EndIf
 		i += 1
 	while (1)	// exit is via break statement
@@ -228,9 +266,10 @@ Function colorTimeWaves(timepoints) : Graphstyle
 	KillWaves Red, Green, Blue, RedInterp, GreenInterp, BlueInterp
 End
 
-Function labelTimes(pnt)
+Function labelTimes(pnt,[fsize])
 //Label time resolved spectra, for instance, those displayed using stackplot
 	Variable pnt	//Where you want the labels to be
+	Variable fsize	//font size
 	//Set up the list of relevant waves
 	String 	wl=RemoveFromList(WaveList("fit*",";",""),TraceNameList("", ";",1))
 	
@@ -265,6 +304,9 @@ Function labelTimes(pnt)
 			Variable green = GetNumFromModifyStr(traceinfo("",name,0),"rgb","(",2)
 		
 			String myLabel ="\\K("+num2str(red)+","+num2str(blue)+","+num2str(green)+")"+timepoint
+			If(!ParamIsDefault(fsize))
+				sprintf mylabel, "\Z%0.2d%s",fsize,mylabel
+			EndIf
 			Tag/C/N=$name/F=0/A=MB/X=0.00/Y=0.00/L=0 $name, pnt, myLabel
 			
 		EndIf

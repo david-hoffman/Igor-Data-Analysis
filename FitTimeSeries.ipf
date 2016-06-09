@@ -100,13 +100,13 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 	EndIf
 	
 	If(ParamIsDefault(Wiggle))
-		Make/N=(numpnts(wavenumber))/O/D/FREE Vlimit = 20
+		Make/N=(numpnts(wavenumber))/O/D/FREE Vlimit = 20 //Change!
 	Else
 		Duplicate/O/FREE Wiggle Vlimit
 	EndIf
 	
 	If(ParamIsDefault(Width))
-		Make/N=(numpnts(wavenumber))/O/D/FREE MaxWidth = 170
+		Make/N=(numpnts(wavenumber))/O/D/FREE MaxWidth = 100 //Change!
 	Else
 		Duplicate/O/FREE Width MaxWidth
 	EndIf
@@ -152,42 +152,45 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 	// the wavenumbers and the points so that the user can find them later if need be
 	
 	//Print a row with the wavenumbers
-	Print " "
-	Print "Initial guesses:"
-	PrintF "Wavenumber:"
-	For(i=0;i<lengthW;i+=1)
-		PrintF "\t%s", wavenumber[i]
-	EndFor
-	PrintF "\r"
-	//Print a row with the amp guesses
-	PrintF "Amp:\t\t"
-	For(i=0;i<lengthW;i+=1)
-		PrintF "\t%g", Coefs[3*i+1]
-	EndFor
-	PrintF "\r"
-	//Print a row with the center guesses
-	PrintF "Center:\t"
-	For(i=0;i<lengthW;i+=1)
-		PrintF "\t%g", coefs[3*i+2]
-	EndFor
-	PrintF "\r"
-	//Print a row with the width guesses
-	PrintF "Width:\t"
-	For(i=0;i<lengthW;i+=1)
-		PrintF "\t\t%g", coefs[3*i+3]
-	EndFor
-	PrintF "\r"
-	Print " "
-	Print "Now in copiable form"
-	Print "Make/T/O/N="+num2str(lengthW)+" "+nameofwave(wavenumber)+"; DelayUpdate"
-	Print Wavenumber
-	Print "Make/D/O/N="+num2str(numpnts(coefs))+" "+nameofwave(coefs)+"; DelayUpdate"
-	Print coefs
-	Print " "
-	Print "Point A is "+num2str(pnt1)+" ("+num2str(shiftx[pnt1])+" cm-1) and Point B is "+num2str(pnt2)+" ("+num2str(shiftx[pnt2])+" cm-1)."
-	Print " "
-	Print "We'll be fitting the timepoints in between " + num2str(timepoints[subrangeStart]) + " and " + num2str(timepoints[subrangeEnd-1])
-	Print " "
+	variable q=1
+	If(q)
+		Print " "
+		Print "Initial guesses:"
+		PrintF "Wavenumber:"
+		For(i=0;i<lengthW;i+=1)
+			PrintF "\t%s", wavenumber[i]
+		EndFor
+		PrintF "\r"
+		//Print a row with the amp guesses
+		PrintF "Amp:\t\t"
+		For(i=0;i<lengthW;i+=1)
+			PrintF "\t%g", Coefs[3*i+1]
+		EndFor
+		PrintF "\r"
+		//Print a row with the center guesses
+		PrintF "Center:\t"
+		For(i=0;i<lengthW;i+=1)
+			PrintF "\t%g", coefs[3*i+2]
+		EndFor
+		PrintF "\r"
+		//Print a row with the width guesses
+		PrintF "Width:\t"
+		For(i=0;i<lengthW;i+=1)
+			PrintF "\t\t%g", coefs[3*i+3]
+		EndFor
+		PrintF "\r"
+		Print " "
+		Print "Now in copiable form"
+		Print "Make/T/O/N="+num2str(lengthW)+" "+nameofwave(wavenumber)+"; DelayUpdate"
+		Print Wavenumber
+		Print "Make/D/O/N="+num2str(numpnts(coefs))+" "+nameofwave(coefs)+"; DelayUpdate"
+		Print coefs
+		Print " "
+		Print "Point A is "+num2str(pnt1)+" ("+num2str(shiftx[pnt1])+" cm-1) and Point B is "+num2str(pnt2)+" ("+num2str(shiftx[pnt2])+" cm-1)."
+		Print " "
+		Print "We'll be fitting the timepoints in between " + num2str(timepoints[subrangeStart]) + " and " + num2str(timepoints[subrangeEnd-1])
+		Print " "
+	EndIf
 	
 	Make/T/O/N=(lengthW) fitamp,fitfreq,fitwidth,fitamperror,fitfreqerror,fitwidtherror,fitarea,fitareaerror
 	for(i=0;I<lengthW;i+=1)
@@ -251,35 +254,49 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 		CTextWave[i+4]="K"+num2str(j+3)+"<"+num2str(MaxWidth[k])
 		k+=1
 	EndFor
-	Print "This is my constraint WAVE:"
-	Print CTextWave
-	Print " "
-	//Print "H_string is "+H_string
-	//Print " "
-	//Print Coefs
+	
+	If(q)
+		Print "This is my constraint WAVE:"
+		Print CTextWave
+		Print " "
+		//Print "H_string is "+H_string
+		//Print " "
+		//Print Coefs
+	EndIf
 	Duplicate/O coefs tempPeak_Coefs
 	
 	String F_String=""
 	
 	If(PeakType)
-		Print  "Peak Type is Gaussian"
+		If(q)
+			Print  "Peak Type is Gaussian"
+		Endif
 		F_String="{fGFit, tempPeak_Coefs, hold=\"1\",EPSW=epsilonWave}"
 	Else
-		Print  "Peak Type is Lorentzian"
+		If(q)
+			Print  "Peak Type is Lorentzian"
+		EndIf
 		F_String="{fLorFit, tempPeak_Coefs, hold=\"1\",EPSW=epsilonWave}"
 	EndIf
 	
 	If(PolyNum>2)
-		Print "Including an order", polynum-1, "polynomial for the baseline"
+		If(q)
+			Print "Including an order", polynum-1, "polynomial for the baseline"
+		EndIf
 		Make/D/O/N=(PolyNum) tempBaseln_Coefs=0
 		F_String+="{poly_XOffset "+num2str(polynum)+", tempBaseln_Coefs}"
 	ElseIf(PolyNum!=0)
-		Print "Including line for the baseline"
+		If(q)
+			Print "Including line for the baseline"
+		EndIf
 		Make/D/O/N=2 tempBaseln_Coefs=0
 		F_String+="{line, tempBaseln_Coefs}"
 		Polynum=2
 	Else
-		Print "No baseline!"
+		If(q)
+			Print "No baseline!"
+		Endif
+		Make/D/O/N=1 tempBaseln_Coefs=0
 	EndIf
 	
 	If(includeGND)
@@ -294,13 +311,14 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 		Make/D/O/N=(LengthT) ScaleFactors, sigma_ScaleFactors
 		
 		F_String += "{scaleGround, scaleFactor,STRC=gndStruct}"
-	Else
+	ElseIf(q)
 		Print "No ground included."
 	EndIf
 	
-	Print ""
-	
-	Printf " Start fitting: -/"
+	if(q)
+		Print ""
+		Printf " Start fitting: -/"
+	EndIf
 	
 	//String to hold the timepoints which weren't fit properly
 	
@@ -380,9 +398,11 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 			If(WaveExists($currenttime))
 				badFits += currenttime+"\r"
 				fitfail+=1
-				Printf "X"// X for fail!
+				if(q)
+					Printf "X"// X for fail!
+				Endif
 				tempBaseln_Coefs = 0
-			Else
+			Elseif(q)
 				Printf " DNE "//DNE=does not exist!
 			EndIf
 			//print coef
@@ -391,7 +411,9 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 		Else
 			//Print "Fitting successful!"
 			fitsuccess+=1
-			Printf "O"//O for OK!
+			if(q)
+				Printf "O"//O for OK!
+			EndIf
 			If(PolyNum!=0)
 				//Now I will make the fits and the baseline so that these can be plotted by the user.
 				If(peaktype)
@@ -425,8 +447,9 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 				Make/D/O/N=1340 $(currenttime+"_nb")=myWave-tempBaseLineWave
 			EndIf
 		EndIf
-		
-		DoUpdate
+		if(q)
+			DoUpdate
+		EndIf
 		
 		V_FitError=0
 		
@@ -435,16 +458,17 @@ Function fitTimeSeries(timepoints, pnt1, pnt2,wavenumber,Coefs,[gnd, Wiggle,Widt
 			Break
 		EndIf
 	EndFor
+	If(q)
+		PrintF "/-\r"
+		Print " "
+		Print "There were "+num2istr(fitsuccess)+" successful fittings and "+num2istr(fitfail)+" fitting failures in this run"
+	EndIf
 	
-	PrintF "/-\r"
-	Print " "
-	
-	Print "There were "+num2istr(fitsuccess)+" successful fittings and "+num2istr(fitfail)+" fitting failures in this run"
-	If(fitfail!=0)
+	If(fitfail!=0 && q)
 		Print badFits
 	EndIf
 	
-	If(Plot!=0)//Plotting the results!
+	If(Plot)//Plotting the results!
 		for(k=0;k<lengthW;k+=1)
 			tabfit(freq=str2num(wavenumber[k]))
 		EndFor
@@ -463,7 +487,7 @@ Function tabFit([freq])
 //Displays the results of peak fitting
 //The user can chose whether they want to plot the amplitude, the frequency, the width or the area
 	Variable freq
-	WAVE timepoints = timepoints
+	WAVE timepoints = root:timepoints
 	If(!WaveExists(timepoints))
 		Print "Timepoints WAVE does not exist"
 		return -1
@@ -532,7 +556,7 @@ Function PlotFitSub(type,freq,plotAppend)
 	String type
 	Variable freq, plotAppend
 	
-	WAVE timepoints = timepoints
+	WAVE timepoints = root:timepoints
 	If(!WaveExists(timepoints))
 		Print "Timepoints WAVE does not exist"
 		return -1

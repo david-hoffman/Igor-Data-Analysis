@@ -180,44 +180,6 @@ Function/S ReverseList(list)
 	Return newList
 End
 
-Function DisplayWL(wl,[XWave])
-	//A quick macro to display a list of waves
-	String wl //the list to be displayed
-	WAVE XWave //optional abscissa WAVE
-	
-	//Pull the length
-	Variable length=ItemsInList(wl)
-	
-	If(length==0)
-		//Error checking, in case the user has made a mistake
-		Print "There was nothing to display."
-		Return -1
-	EndIf
-	
-	String TN=""//Trace name
-	
-	Display //set up the display window
-	
-	Variable i=0 //my iterator
-	
-	For(i=0;i<length;i+=1)
-		//loop through the list pulling out each WAVE
-		TN = StringFromList(i,wl, ";")
-		If(WaveExists($TN))//Make sure the WAVE exists!
-			//append the waves to the top graph, with or without an xwave as desired
-			If(ParamIsDefault(XWave))
-				AppendToGraph $TN
-			Else
-				AppendToGraph $TN vs XWave
-			EndIf
-		Else
-			Print TN+" does not exist!"
-		EndIf
-	EndFor
-	
-	Return 0 //successful exit
-End
-
 Function autoBaseline()
 	//A function to speed up baseline subtraction.
 	//It will automatically find the withg WAVE and the polynomial and run
@@ -274,6 +236,11 @@ function XCMaxG(Matrix)
 	WAVE tempWidth = $(NameOfWave(Matrix)+"_Width")
 	WAVE tempMaxS = $(NameOfWave(Matrix)+"_MaxS")
 	WAVE tempWidthS = $(NameOfWave(Matrix)+"_WidthS")
+	
+	Variable myleft = DimOffset(Matrix,0)
+	Variable myDelta = DimDelta(Matrix,0)
+	
+	SetScale/P x,myLeft,myDelta,"", tempMax, tempWidth, tempMaxS, tempWidthS
 	
 	Variable timerRefNum = startMSTimer
 	
@@ -1102,18 +1069,18 @@ Function AddAllGround(timepoints,ground,groundadded,[extraBase])
 	String currenttime
 	
 	If(ParamIsDefault(extraBase))
-		extraBase = ""
+		extraBase = "_subg"
 	EndIf
 	
 	//Loop through the time delays and add the ground
 	Variable i, length = numpnts(timepoints)
 	For(i=0;i<length;i+=1)
 		currenttime = myTime(timepoints[i])
-		WAVE tracewave = $(currenttime+extraBase+"_subg")
+		WAVE tracewave = $(currenttime+extraBase)
 		If(!WaveExists(tracewave))
-			Print currenttime+extraBase+"_subg is not a valid WAVE!"
+			Print currenttime+extraBase+" is not a valid WAVE!"
 		Else
-			Make/D/O/N=(numpnts(tracewave)) $(currenttime+extraBase+"_withg")=tracewave+groundadded[i]*ground
+			Make/D/O/N=(numpnts(tracewave)) $(currenttime+"_withg")=tracewave+groundadded[i]*ground
 		EndIf
 	EndFor
 End
@@ -1637,6 +1604,49 @@ Function/S SVDFilter(Matrix, perToKeep)
 	Return GetWavesDataFolder(Output,2)
 End
 
+Function SpikeRemover(myWave)
+//Removes spurious spikes due to bad pixels
+	WAVE myWAVE//Wave with spurious spikes
+	
+	//Derivative of wave, forward differences
+	Differentiate/Meth=1 myWAVE/D=myWAVE_DIF
+	//Square the derivative to magnify outliers
+	myWAVE_DIF=myWAVE_DIF^2
+	
+	//find the standard deviation
+	variable i=0, v_sdev, v_avg
+	WAVESTATS/Q myWAVE_DIF
+	
+	//Make sure the spikes are big enough! 2 seems to be a good number
+	If(v_sdev/v_avg>2)
+		for(i=0;i<numpnts(myWAVE_DIF);i+=1)
+		//check to see if the derivative is large
+			If(myWAVE_DIF[i]>v_sdev)
+				//Replace the i+1 point, remember we did forward derivatives
+				myWAVE[i+1]=myWAVE[i]
+				//move the iterator forward, this is only designed to deal with impulses!
+				i+=1
+			EndIf
+		Endfor
+	EndIf
+	//Kill the temp waves
+	Killwaves myWave_dif
+End
+
+Function SpikeRemoverMulti(base)
+	String Base
+
+	String wl = WaveList(base,";","")//a list of waves matching the base name is generated
+	Variable length =ItemsInList(wl)		//Number of Items in the list
+	
+	String tn
+	Variable i = 0
+	For(i=0;i<length;i+=1)
+		tn = StringFromList(i,wl, ";")	//Pull the next string name
+		SpikeRemover($tn)
+	EndFor
+End
+
 STATIC Function numToKeep(W,perToKeep)
 //A helper function For the above filtering function
 //you pass it the singular values as W and the percentage to keep
@@ -1675,10 +1685,16 @@ Function WheresTheNAN(Matrix)
 	Variable i,j
 	
 	For(i=0;i<imax;i+=1)
-		For(j=0;j<jmax;j+=1)
-			If(numtype(Matrix[i][j]))
-				Print "i = " +num2str(i) + "; j = "+num2str(j)
+		If(jmax==0)
+			If(numtype(Matrix[i]))
+				Print "i = " +num2str(i)
 			EndIf
-		EndFor
+		Else
+			For(j=0;j<jmax;j+=1)
+				If(numtype(Matrix[i][j]))
+					Print "i = " +num2str(i) + "; j = "+num2str(j)
+				EndIf
+			EndFor
+		EndIf
 	EndFor
 End

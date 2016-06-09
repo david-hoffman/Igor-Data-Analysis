@@ -791,14 +791,18 @@ Function decayingSinusoids(w,t)
 	Return val
 End
 
-Function PrintLPSVDCoefs(LPSVD_coefs,sigma_LPSVD_coefs,timestep,offset)
+Function PrintLPSVDCoefs(LPSVD_coefs,sigma_LPSVD_coefs,timestep,[offset])
 	WAVE LPSVD_coefs
 	WAVE sigma_LPSVD_coefs
 	Variable Timestep
 	Variable offset
 	
+	If(ParamIsDefault(offset))
+		offset=str2num(StringFromList(1, note(LPSVD_coefs), ","))
+	Endif
+	
 	Variable i=0,corrPhase
-	Printf "  Amp\t\t+/-\t\tWidth\t\t+/-\t\tDamp\t\t+/-\t\tFreq\t\t+/-\t\tPhase\t\t+/-\t\tCorrPhase\r"
+	Printf "  Amp\t\t+/-\t\tWidth\t\t+/-\t\tDamp\t\t+/-\t\tFreq\t\t+/-\t\tPhase\t\t+/-\t\tCorrPhase\t\tCorrAmps\r"
 	For(i=0;i<DimSize(LPSVD_coefs,0);i+=1)
 		Printf "%6.3f\t", LPSVD_coefs[i][%amps]
 		Printf "%6.3f\t\t", sigma_LPSVD_coefs[i][%amps]
@@ -815,7 +819,9 @@ Function PrintLPSVDCoefs(LPSVD_coefs,sigma_LPSVD_coefs,timestep,offset)
 		Printf "%6d\t\t", LPSVD_coefs[i][%phase]/pi*180
 		Printf "%6d\t\t", sigma_LPSVD_coefs[i][%phase]/pi*180
 		corrPhase=LPSVD_coefs[i][%phase]-2*pi*LPSVD_coefs[i][%freqs]*offset/timestep
-		Printf "%6d\r", (corrPhase-(2*pi*trunc(corrPhase/2/pi)-pi))/pi*180
+		Printf "%6d\t\t", (corrPhase-(2*pi*trunc(corrPhase/2/pi)-pi))/pi*180
+		
+		Printf "%6.3f\r", 2*LPSVD_coefs[i][%amps]*exp(-offset/timestep*LPSVD_coefs[i][%damps])
 	EndFor
 End
 
